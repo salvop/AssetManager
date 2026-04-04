@@ -53,14 +53,14 @@ def test_asset_assignment_updates_asset_and_history(client: TestClient, seeded_d
     response = client.post(
         "/api/v1/assets/1/assign",
         headers=headers,
-        json={"user_id": 3, "department_id": 2, "location_id": 2, "notes": "Issued to employee"},
+        json={"employee_id": 3, "department_id": 2, "location_id": 2, "notes": "Issued to employee"},
     )
     assert response.status_code == 200, response.text
 
     detail_response = client.get("/api/v1/assets/1", headers=headers)
     assert detail_response.status_code == 200
     payload = detail_response.json()
-    assert payload["assigned_user"]["id"] == 3
+    assert payload["assigned_employee"]["id"] == 3
     assert payload["status"]["code"] == "ASSIGNED"
     assert payload["assignments"][0]["returned_at"] is None
     assert any(event["event_type"] == "ASSIGN" for event in payload["events"])
@@ -72,7 +72,7 @@ def test_asset_return_closes_assignment(client: TestClient, seeded_db: Session, 
     assign_response = client.post(
         "/api/v1/assets/1/assign",
         headers=headers,
-        json={"user_id": 3, "department_id": 2},
+        json={"employee_id": 3, "department_id": 2},
     )
     assert assign_response.status_code == 200, assign_response.text
 
@@ -82,7 +82,7 @@ def test_asset_return_closes_assignment(client: TestClient, seeded_db: Session, 
 
     detail_response = client.get("/api/v1/assets/1", headers=headers)
     payload = detail_response.json()
-    assert payload["assigned_user"] is None
+    assert payload["assigned_employee"] is None
     assert payload["status"]["code"] == "IN_STOCK"
     assert any(event["event_type"] == "RETURN" for event in payload["events"])
 
@@ -233,7 +233,7 @@ def test_dashboard_summary_includes_operational_lists(client: TestClient, seeded
     client.post(
         "/api/v1/assets/1/assign",
         headers=headers,
-        json={"user_id": 3, "department_id": 2, "expected_return_at": "2026-04-10T10:00:00", "notes": "Prestito breve"},
+        json={"employee_id": 3, "department_id": 2, "expected_return_at": "2026-04-10T10:00:00", "notes": "Prestito breve"},
     )
     client.post(
         "/api/v1/maintenance-tickets",
@@ -360,7 +360,7 @@ def test_asset_csv_export_respects_filters(client: TestClient, seeded_db: Sessio
     response = client.get("/api/v1/assets/export/csv?status_id=3", headers=headers)
     assert response.status_code == 200, response.text
     body = response.content.decode("utf-8-sig")
-    assert "Tag asset,Nome,Categoria,Stato" in body
+    assert "Tag asset,Nome,Categoria,Tipo,Marca,Stato" in body
     assert "LT-1002" in body
     assert "LT-1001" not in body
 
@@ -406,13 +406,33 @@ def test_assignment_sends_email_notification(
     response = client.post(
         "/api/v1/assets/1/assign",
         headers=headers,
-        json={"user_id": 3, "department_id": 2},
+        json={"employee_id": 3, "department_id": 2},
     )
     assert response.status_code == 200, response.text
     assert calls
     assert "employee@example.com" in calls[0]["recipients"]
     assert "ops@example.com" in calls[0]["recipients"]
     assert "Asset assegnato" in calls[0]["subject"]
+
+
+def test_operator_can_create_employee_record(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    headers = auth_headers("admin", "admin123")
+    response = client.post(
+        "/api/v1/employees",
+        headers=headers,
+        json={
+            "employee_code": "EMP-00999",
+            "full_name": "Nuovo Dipendente",
+            "email": "nuovo.dipendente@example.com",
+            "department_id": 1,
+            "is_active": True,
+            "notes": "Creato via test",
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["employee_code"] == "EMP-00999"
+    assert payload["full_name"] == "Nuovo Dipendente"
 
 
 def test_maintenance_status_change_sends_email_notification(
@@ -452,3 +472,104 @@ def test_maintenance_status_change_sends_email_notification(
     assert calls
     assert "admin@example.com" in calls[0]["recipients"]
     assert "Aggiornamento ticket manutenzione" in calls[0]["subject"]
+
+
+def test_software_license_creation_and_assignment_workflow(
+    client: TestClient,
+    seeded_db: Session,
+    auth_headers,
+) -> None:
+    headers = auth_headers("admin", "admin123")
+
+    create_response = client.post(
+        "/api/v1/software-licenses",
+        headers=headers,
+        json={
+            "product_name": "Microsoft 365 Business Premium",
+            "license_type": "Named user",
+            "purchased_quantity": 2,
+            "expiry_date": "2026-04-25",
+            "renewal_alert_days": 30,
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    license_id = create_response.json()["id"]
+
+    assign_response = client.post(
+        f"/api/v1/software-licenses/{license_id}/assign",
+        headers=headers,
+        json={"user_id": 3, "notes": "Assegnazione SAM"},
+    )
+    assert assign_response.status_code == 200, assign_response.text
+    payload = assign_response.json()
+    assert payload["user"]["id"] == 3
+
+    detail_response = client.get(f"/api/v1/software-licenses/{license_id}", headers=headers)
+    assert detail_response.status_code == 200, detail_response.text
+    detail_payload = detail_response.json()
+    assert detail_payload["active_assignments"] == 1
+    assert detail_payload["available_quantity"] == 1
+    assert any(event["event_type"] == "ASSIGN" for event in detail_payload["events"])
+
+
+def test_software_license_prevents_over_assignment(
+    client: TestClient,
+    seeded_db: Session,
+    auth_headers,
+) -> None:
+    seed_asset(seeded_db)
+    headers = auth_headers("admin", "admin123")
+    create_response = client.post(
+        "/api/v1/software-licenses",
+        headers=headers,
+        json={
+            "product_name": "Adobe Acrobat Pro",
+            "license_type": "Device",
+            "purchased_quantity": 1,
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    license_id = create_response.json()["id"]
+
+    assign_response = client.post(
+        f"/api/v1/software-licenses/{license_id}/assign",
+        headers=headers,
+        json={"user_id": 3},
+    )
+    assert assign_response.status_code == 200, assign_response.text
+
+    second_assign_response = client.post(
+        f"/api/v1/software-licenses/{license_id}/assign",
+        headers=headers,
+        json={"asset_id": 1},
+    )
+    assert second_assign_response.status_code == 409
+    assert second_assign_response.json()["detail"] == "No license seats available"
+
+
+def test_dashboard_summary_includes_software_license_alerts(
+    client: TestClient,
+    seeded_db: Session,
+    auth_headers,
+) -> None:
+    headers = auth_headers("admin", "admin123")
+
+    create_response = client.post(
+        "/api/v1/software-licenses",
+        headers=headers,
+        json={
+            "product_name": "VMware vSphere",
+            "license_type": "Subscription",
+            "purchased_quantity": 5,
+            "expiry_date": "2026-04-10",
+            "renewal_alert_days": 15,
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+
+    response = client.get("/api/v1/dashboard/summary", headers=headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["software_licenses_expiring_soon"] == 1
+    assert payload["software_license_alerts"][0]["product_name"] == "VMware vSphere"
+    assert any(notification["category"] == "Licenze" for notification in payload["notifications"])

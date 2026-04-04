@@ -47,6 +47,8 @@ class AssetCategory(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     code: Mapped[str] = mapped_column(String(50), unique=True)
     name: Mapped[str] = mapped_column(String(150))
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("asset_categories.id"), nullable=True)
+    parent: Mapped["AssetCategory | None"] = relationship(remote_side=[id], backref="children")
 
 
 class AssetStatus(TimestampMixin, Base):

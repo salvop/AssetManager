@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.asset import Asset
 from app.repositories.asset import AssetRepository
 from app.repositories.assignment import AssignmentRepository
+from app.repositories.employee import EmployeeRepository
 from app.repositories.lookup import LookupRepository
 from app.repositories.user import UserRepository
 from app.schemas.asset import (
@@ -27,6 +28,7 @@ from app.services.helpers import (
     asset_reference,
     assignment_response,
     document_response,
+    employee_reference,
     event_response,
     require_resource,
     user_reference,
@@ -38,6 +40,7 @@ class AssetService:
         self.db = db
         self.repository = AssetRepository(db)
         self.assignment_repository = AssignmentRepository(db)
+        self.employee_repository = EmployeeRepository(db)
         self.lookup_repository = LookupRepository(db)
         self.user_repository = UserRepository(db)
         self.event_service = AssetEventService(db)
@@ -51,7 +54,7 @@ class AssetService:
         model_id: int | None,
         location_id: int | None,
         department_id: int | None,
-        assigned_user_id: int | None,
+        assigned_employee_id: int | None,
         vendor_id: int | None,
         page: int,
         page_size: int,
@@ -65,7 +68,7 @@ class AssetService:
             model_id=model_id,
             location_id=location_id,
             department_id=department_id,
-            assigned_user_id=assigned_user_id,
+            assigned_employee_id=assigned_employee_id,
             vendor_id=vendor_id,
             page=page,
             page_size=page_size,
@@ -90,12 +93,18 @@ class AssetService:
             asset_tag=asset.asset_tag,
             name=asset.name,
             serial_number=asset.serial_number,
+            asset_type=asset.asset_type,
+            brand=asset.brand,
             description=asset.description,
             purchase_date=asset.purchase_date,
             warranty_expiry_date=asset.warranty_expiry_date,
             expected_end_of_life_date=asset.expected_end_of_life_date,
             disposal_date=asset.disposal_date,
             cost_center=asset.cost_center,
+            location_floor=asset.location_floor,
+            location_room=asset.location_room,
+            location_rack=asset.location_rack,
+            location_slot=asset.location_slot,
             category=asset_reference(self._require_category(asset.category_id)),
             model=self._optional_reference(asset.model_id, self.lookup_repository.get_model),
             status=asset_reference(self._require_status(asset.status_id)),
@@ -105,10 +114,14 @@ class AssetService:
                 asset.current_department_id,
                 self.lookup_repository.get_department,
             ),
-            assigned_user=self._optional_user_reference(asset.assigned_user_id),
+            assigned_employee=self._optional_employee_reference(asset.assigned_employee_id),
             assignments=[self._build_assignment_response(item) for item in assignments],
             events=[self._build_event_response(item) for item in events],
             documents=[self._build_document_response(item) for item in documents],
+            photo_document=next(
+                (self._build_document_response(item) for item in documents if item.content_type.startswith("image/")),
+                None,
+            ),
         )
 
     def create_asset(self, payload: AssetCreateRequest, current_user_id: int) -> AssetDetailResponse:
@@ -248,7 +261,7 @@ class AssetService:
         model_id: int | None,
         location_id: int | None,
         department_id: int | None,
-        assigned_user_id: int | None,
+        assigned_employee_id: int | None,
         vendor_id: int | None,
         sort_by: str,
         sort_dir: str,
@@ -260,7 +273,7 @@ class AssetService:
             model_id=model_id,
             location_id=location_id,
             department_id=department_id,
-            assigned_user_id=assigned_user_id,
+            assigned_employee_id=assigned_employee_id,
             vendor_id=vendor_id,
             sort_by=sort_by,
             sort_dir=sort_dir,
@@ -281,7 +294,7 @@ class AssetService:
         model_id: int | None,
         location_id: int | None,
         department_id: int | None,
-        assigned_user_id: int | None,
+        assigned_employee_id: int | None,
         vendor_id: int | None,
         sort_by: str,
         sort_dir: str,
@@ -293,7 +306,7 @@ class AssetService:
             model_id=model_id,
             location_id=location_id,
             department_id=department_id,
-            assigned_user_id=assigned_user_id,
+            assigned_employee_id=assigned_employee_id,
             vendor_id=vendor_id,
             sort_by=sort_by,
             sort_dir=sort_dir,
@@ -307,25 +320,31 @@ class AssetService:
             asset_tag=asset.asset_tag,
             name=asset.name,
             serial_number=asset.serial_number,
+            asset_type=asset.asset_type,
+            brand=asset.brand,
             status=asset_reference(self._require_status(asset.status_id)),
             category=asset_reference(self._require_category(asset.category_id)),
             location=self._optional_reference(asset.location_id, self.lookup_repository.get_location),
-            assigned_user=self._optional_user_reference(asset.assigned_user_id),
+            assigned_employee=self._optional_employee_reference(asset.assigned_employee_id),
             purchase_date=asset.purchase_date,
             warranty_expiry_date=asset.warranty_expiry_date,
             expected_end_of_life_date=asset.expected_end_of_life_date,
             cost_center=asset.cost_center,
+            location_floor=asset.location_floor,
+            location_room=asset.location_room,
+            location_rack=asset.location_rack,
+            location_slot=asset.location_slot,
         )
 
     def _build_assignment_response(self, assignment):
-        user = require_resource(self.user_repository.get_by_id(assignment.user_id), "Assigned user not found")
+        employee = require_resource(self.employee_repository.get_by_id(assignment.employee_id), "Assigned employee not found")
         assigned_by_user = require_resource(
             self.user_repository.get_by_id(assignment.assigned_by_user_id),
             "Assigned by user not found",
         )
         department = self.lookup_repository.get_department(assignment.department_id) if assignment.department_id else None
         location = self.lookup_repository.get_location(assignment.location_id) if assignment.location_id else None
-        return assignment_response(assignment, user, assigned_by_user, department, location)
+        return assignment_response(assignment, employee, assigned_by_user, department, location)
 
     def _build_event_response(self, event):
         user = self.user_repository.get_by_id(event.performed_by_user_id) if event.performed_by_user_id else None
@@ -341,11 +360,11 @@ class AssetService:
         resource = getter(resource_id)
         return asset_reference(require_resource(resource, "Reference not found"))
 
-    def _optional_user_reference(self, user_id: int | None):
-        if user_id is None:
+    def _optional_employee_reference(self, employee_id: int | None):
+        if employee_id is None:
             return None
-        user = require_resource(self.user_repository.get_by_id(user_id), "User not found")
-        return user_reference(user)
+        employee = require_resource(self.employee_repository.get_by_id(employee_id), "Employee not found")
+        return employee_reference(employee)
 
     def _validate_asset_references(
         self,
@@ -381,8 +400,14 @@ class AssetService:
             "Tag asset",
             "Nome",
             "Categoria",
+            "Tipo",
+            "Marca",
             "Stato",
             "Sede",
+            "Piano",
+            "Stanza",
+            "Rack",
+            "Slot",
             "Dipartimento",
             "Utente assegnato",
             "Fornitore",
@@ -403,7 +428,7 @@ class AssetService:
         model_id: int | None,
         location_id: int | None,
         department_id: int | None,
-        assigned_user_id: int | None,
+        assigned_employee_id: int | None,
         vendor_id: int | None,
         sort_by: str,
         sort_dir: str,
@@ -415,7 +440,7 @@ class AssetService:
             model_id=model_id,
             location_id=location_id,
             department_id=department_id,
-            assigned_user_id=assigned_user_id,
+            assigned_employee_id=assigned_employee_id,
             vendor_id=vendor_id,
             sort_by=sort_by,
             sort_dir=sort_dir,
@@ -427,10 +452,16 @@ class AssetService:
                     asset.asset_tag,
                     asset.name,
                     self._require_category(asset.category_id).name,
+                    asset.asset_type or "",
+                    asset.brand or "",
                     self._require_status(asset.status_id).name,
                     self.lookup_repository.get_location(asset.location_id).name if asset.location_id else "",
+                    asset.location_floor or "",
+                    asset.location_room or "",
+                    asset.location_rack or "",
+                    asset.location_slot or "",
                     self.lookup_repository.get_department(asset.current_department_id).name if asset.current_department_id else "",
-                    self.user_repository.get_by_id(asset.assigned_user_id).full_name if asset.assigned_user_id else "",
+                    self.employee_repository.get_by_id(asset.assigned_employee_id).full_name if asset.assigned_employee_id else "",
                     self.lookup_repository.get_vendor(asset.vendor_id).name if asset.vendor_id else "",
                     asset.serial_number or "",
                     asset.purchase_date.isoformat() if asset.purchase_date else "",

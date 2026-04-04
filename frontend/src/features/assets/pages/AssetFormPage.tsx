@@ -6,9 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
-import { createAsset, updateAsset } from "../api/assets";
+import { createAsset, updateAsset } from "../../../api/assets";
+import { useLookupsBundle } from "../../../hooks/useLookups";
 import { useAsset } from "../hooks/useAssets";
-import { useLookupsBundle } from "../hooks/useLookups";
 
 const assetFormSchema = z.object({
   asset_tag: z.string().min(1, "Il tag asset e obbligatorio").optional(),
@@ -16,6 +16,8 @@ const assetFormSchema = z.object({
   category_id: z.coerce.number().min(1, "La categoria e obbligatoria"),
   status_id: z.coerce.number().min(1, "Lo stato e obbligatorio"),
   serial_number: z.string().optional(),
+  asset_type: z.string().optional(),
+  brand: z.string().optional(),
   model_id: z.coerce.number().nullable().optional(),
   location_id: z.coerce.number().nullable().optional(),
   vendor_id: z.coerce.number().nullable().optional(),
@@ -26,6 +28,10 @@ const assetFormSchema = z.object({
   expected_end_of_life_date: z.string().optional(),
   disposal_date: z.string().optional(),
   cost_center: z.string().optional(),
+  location_floor: z.string().optional(),
+  location_room: z.string().optional(),
+  location_rack: z.string().optional(),
+  location_slot: z.string().optional(),
 });
 
 type AssetFormValues = z.infer<typeof assetFormSchema>;
@@ -39,7 +45,16 @@ export function AssetFormPage() {
   const assetId = Number(params.assetId);
   const isEditMode = Number.isFinite(assetId);
   const { data: asset, isLoading: isAssetLoading } = useAsset(assetId);
-  const { categories, statuses, models, locations, vendors, departments, isLoading, error } = useLookupsBundle();
+  const { categories, statuses, models, locations, vendors, departments, isLoading, error } = useLookupsBundle({
+    departments: true,
+    locations: true,
+    vendors: true,
+    categories: true,
+    models: true,
+    statuses: true,
+    employees: false,
+    users: false,
+  });
 
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(assetFormSchema),
@@ -49,6 +64,8 @@ export function AssetFormPage() {
       category_id: 0,
       status_id: 0,
       serial_number: "",
+      asset_type: "",
+      brand: "",
       model_id: null,
       location_id: null,
       vendor_id: null,
@@ -59,6 +76,10 @@ export function AssetFormPage() {
       expected_end_of_life_date: "",
       disposal_date: "",
       cost_center: "",
+      location_floor: "",
+      location_room: "",
+      location_rack: "",
+      location_slot: "",
     },
   });
 
@@ -70,6 +91,8 @@ export function AssetFormPage() {
       category_id: asset.category.id,
       status_id: asset.status.id,
       serial_number: asset.serial_number ?? "",
+      asset_type: asset.asset_type ?? "",
+      brand: asset.brand ?? "",
       model_id: asset.model?.id ?? null,
       location_id: asset.location?.id ?? null,
       vendor_id: asset.vendor?.id ?? null,
@@ -80,6 +103,10 @@ export function AssetFormPage() {
       expected_end_of_life_date: asset.expected_end_of_life_date ?? "",
       disposal_date: asset.disposal_date ?? "",
       cost_center: asset.cost_center ?? "",
+      location_floor: asset.location_floor ?? "",
+      location_room: asset.location_room ?? "",
+      location_rack: asset.location_rack ?? "",
+      location_slot: asset.location_slot ?? "",
     });
   }, [asset, form]);
 
@@ -92,12 +119,18 @@ export function AssetFormPage() {
         vendor_id: values.vendor_id || null,
         current_department_id: values.current_department_id || null,
         serial_number: values.serial_number || null,
+        asset_type: values.asset_type || null,
+        brand: values.brand || null,
         description: values.description || null,
         purchase_date: values.purchase_date || null,
         warranty_expiry_date: values.warranty_expiry_date || null,
         expected_end_of_life_date: values.expected_end_of_life_date || null,
         disposal_date: values.disposal_date || null,
         cost_center: values.cost_center || null,
+        location_floor: values.location_floor || null,
+        location_room: values.location_room || null,
+        location_rack: values.location_rack || null,
+        location_slot: values.location_slot || null,
       };
       if (isEditMode) {
         const { asset_tag, ...updatePayload } = payload;
@@ -114,7 +147,7 @@ export function AssetFormPage() {
   });
 
   if (isEditMode && isAssetLoading) {
-    return <p className="text-sm text-slate-500">Caricamento asset...</p>;
+    return <p className="text-sm text-slate-500">Caricamento asset…</p>;
   }
 
   return (
@@ -164,6 +197,12 @@ export function AssetFormPage() {
             </Field>
             <Field label="Numero seriale">
               <input {...form.register("serial_number")} className={inputClassName} />
+            </Field>
+            <Field label="Tipo asset">
+              <input {...form.register("asset_type")} className={inputClassName} placeholder="Es. Notebook, Server, Monitor" />
+            </Field>
+            <Field label="Marca">
+              <input {...form.register("brand")} className={inputClassName} placeholder="Es. Lenovo, Dell, Apple" />
             </Field>
             <Field label="Modello">
               <select {...form.register("model_id")} className={inputClassName}>
@@ -220,6 +259,18 @@ export function AssetFormPage() {
             <Field label="Cost center">
               <input {...form.register("cost_center")} className={inputClassName} />
             </Field>
+            <Field label="Piano">
+              <input {...form.register("location_floor")} className={inputClassName} />
+            </Field>
+            <Field label="Stanza">
+              <input {...form.register("location_room")} className={inputClassName} />
+            </Field>
+            <Field label="Rack">
+              <input {...form.register("location_rack")} className={inputClassName} />
+            </Field>
+            <Field label="Slot">
+              <input {...form.register("location_slot")} className={inputClassName} />
+            </Field>
           </div>
           <Field label="Descrizione" className="mt-4">
             <textarea {...form.register("description")} className={`${inputClassName} min-h-28`} />
@@ -228,12 +279,12 @@ export function AssetFormPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            {isLoading && <p className="text-sm text-slate-500">Caricamento tabelle di supporto...</p>}
-            {error && <p className="text-sm text-rose-600">{error.message}</p>}
-            {mutation.error && <p className="text-sm text-rose-600">{mutation.error.message}</p>}
+            {isLoading && <p className="text-sm text-slate-500">Caricamento tabelle di supporto…</p>}
+            {error && <p className="text-sm text-rose-600" aria-live="polite">{error.message}</p>}
+            {mutation.error && <p className="text-sm text-rose-600" aria-live="polite">{mutation.error.message}</p>}
           </div>
           <button className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white">
-            {mutation.isPending ? "Salvataggio..." : isEditMode ? "Salva modifiche" : "Crea asset"}
+            {mutation.isPending ? "Salvataggio…" : isEditMode ? "Salva modifiche" : "Crea asset"}
           </button>
         </div>
       </form>

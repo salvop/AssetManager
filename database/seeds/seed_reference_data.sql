@@ -13,22 +13,22 @@ VALUES
   (3, 'FIN', 'Finance', 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name), is_active = VALUES(is_active);
 
-INSERT INTO locations (id, code, name)
+INSERT INTO locations (id, code, name, parent_id)
 VALUES
-  (1, 'HQ', 'Headquarters'),
-  (2, 'HQ-IT', 'Headquarters - IT Storage'),
-  (3, 'BR1', 'Branch Office 1')
-ON DUPLICATE KEY UPDATE name = VALUES(name);
+  (1, 'HQ', 'Headquarters', NULL),
+  (2, 'HQ-IT', 'Headquarters - IT Storage', 1),
+  (3, 'BR1', 'Branch Office 1', NULL)
+ON DUPLICATE KEY UPDATE name = VALUES(name), parent_id = VALUES(parent_id);
 
-INSERT INTO asset_categories (id, code, name)
+INSERT INTO asset_categories (id, code, name, parent_id)
 VALUES
-  (1, 'LAPTOP', 'Laptop'),
-  (2, 'DESKTOP', 'Desktop'),
-  (3, 'MONITOR', 'Monitor'),
-  (4, 'PHONE', 'Phone'),
-  (5, 'PRINTER', 'Printer'),
-  (6, 'SERVER', 'Server')
-ON DUPLICATE KEY UPDATE name = VALUES(name);
+  (1, 'LAPTOP', 'Laptop', NULL),
+  (2, 'DESKTOP', 'Desktop', NULL),
+  (3, 'MONITOR', 'Monitor', NULL),
+  (4, 'PHONE', 'Phone', NULL),
+  (5, 'PRINTER', 'Printer', NULL),
+  (6, 'SERVER', 'Server', NULL)
+ON DUPLICATE KEY UPDATE name = VALUES(name), parent_id = VALUES(parent_id);
 
 INSERT INTO asset_statuses (id, code, name, is_assignable)
 VALUES

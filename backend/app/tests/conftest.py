@@ -13,10 +13,13 @@ from app.main import app
 from app.core.config import settings
 from app.models import asset as asset_models  # noqa: F401
 from app.models import assignment as assignment_models  # noqa: F401
+from app.models import employee as employee_models  # noqa: F401
 from app.models import lookup as lookup_models  # noqa: F401
 from app.models import maintenance as maintenance_models  # noqa: F401
+from app.models import software as software_models  # noqa: F401
 from app.models import user as user_models  # noqa: F401
 from app.models.asset import Asset
+from app.models.employee import Employee
 from app.models.lookup import AssetCategory, AssetStatus, Department, Location, Role
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password
@@ -150,6 +153,17 @@ def seed_users(session: Session) -> None:
     session.commit()
 
 
+def seed_employees(session: Session) -> None:
+    session.add_all(
+        [
+            Employee(id=1, department_id=1, employee_code="EMP-00001", full_name="Admin User", email="admin@example.com", is_active=True),
+            Employee(id=2, department_id=1, employee_code="EMP-00002", full_name="Viewer User", email="viewer@example.com", is_active=True),
+            Employee(id=3, department_id=2, employee_code="EMP-00003", full_name="Employee User", email="employee@example.com", is_active=True),
+        ]
+    )
+    session.commit()
+
+
 def seed_asset(session: Session, *, asset_id: int = 1, asset_tag: str = "LT-1001", status_id: int = 1) -> Asset:
     asset = Asset(
         id=asset_id,
@@ -171,6 +185,7 @@ def seed_asset(session: Session, *, asset_id: int = 1, asset_tag: str = "LT-1001
 def seeded_db(db_session: Session) -> Session:
     seed_reference_data(db_session)
     seed_users(db_session)
+    seed_employees(db_session)
     return db_session
 
 

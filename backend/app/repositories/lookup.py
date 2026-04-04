@@ -108,6 +108,7 @@ class LookupRepository:
     def category_is_in_use(self, category_id: int) -> bool:
         return any(
             (
+                self._has_references(AssetCategory.parent_id == category_id, AssetCategory),
                 self._has_references(Asset.category_id == category_id, Asset),
                 self._has_references(AssetModel.category_id == category_id, AssetModel),
             )

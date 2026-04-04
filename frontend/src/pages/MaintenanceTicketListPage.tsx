@@ -14,7 +14,16 @@ export function MaintenanceTicketListPage() {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useMaintenanceTickets();
   const { data: assetData } = useAssets({});
-  const { vendors } = useLookupsBundle();
+  const { vendors } = useLookupsBundle({
+    vendors: true,
+    departments: false,
+    locations: false,
+    categories: false,
+    models: false,
+    statuses: false,
+    employees: false,
+    users: false,
+  });
   const [assetId, setAssetId] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [title, setTitle] = useState("");

@@ -17,7 +17,7 @@ class AssetRepository:
         model_id: int | None,
         location_id: int | None,
         department_id: int | None,
-        assigned_user_id: int | None,
+        assigned_employee_id: int | None,
         vendor_id: int | None,
         page: int,
         page_size: int,
@@ -31,7 +31,7 @@ class AssetRepository:
             model_id=model_id,
             location_id=location_id,
             department_id=department_id,
-            assigned_user_id=assigned_user_id,
+            assigned_employee_id=assigned_employee_id,
             vendor_id=vendor_id,
             sort_by=sort_by,
             sort_dir=sort_dir,
@@ -50,7 +50,7 @@ class AssetRepository:
         model_id: int | None,
         location_id: int | None,
         department_id: int | None,
-        assigned_user_id: int | None,
+        assigned_employee_id: int | None,
         vendor_id: int | None,
         sort_by: str,
         sort_dir: str,
@@ -62,7 +62,7 @@ class AssetRepository:
             model_id=model_id,
             location_id=location_id,
             department_id=department_id,
-            assigned_user_id=assigned_user_id,
+            assigned_employee_id=assigned_employee_id,
             vendor_id=vendor_id,
             sort_by=sort_by,
             sort_dir=sort_dir,
@@ -118,7 +118,7 @@ class AssetRepository:
         model_id: int | None,
         location_id: int | None,
         department_id: int | None,
-        assigned_user_id: int | None,
+        assigned_employee_id: int | None,
         vendor_id: int | None,
         sort_by: str,
         sort_dir: str,
@@ -138,8 +138,8 @@ class AssetRepository:
             query = query.where(Asset.location_id == location_id)
         if department_id:
             query = query.where(Asset.current_department_id == department_id)
-        if assigned_user_id:
-            query = query.where(Asset.assigned_user_id == assigned_user_id)
+        if assigned_employee_id:
+            query = query.where(Asset.assigned_employee_id == assigned_employee_id)
         if vendor_id:
             query = query.where(Asset.vendor_id == vendor_id)
 

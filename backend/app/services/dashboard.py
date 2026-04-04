@@ -4,21 +4,23 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.asset import Asset
+from app.models.employee import Employee
 from app.models.assignment import AssetAssignment
 from app.models.lookup import AssetStatus, Location
 from app.models.maintenance import MaintenanceTicket
-from app.models.user import User
 from app.schemas.dashboard import (
     DashboardAssignmentAlertResponse,
     DashboardNotificationResponse,
     DashboardLifecycleAlertResponse,
     DashboardRecentAssetResponse,
     DashboardRecentTicketResponse,
+    DashboardSoftwareLicenseAlertResponse,
     DashboardSummaryResponse,
     DashboardWorkflowAssetResponse,
     DashboardWorkflowTicketResponse,
     StatusCountResponse,
 )
+from app.services.software import SoftwareLicenseService
 
 
 class DashboardService:
@@ -29,7 +31,7 @@ class DashboardService:
         today = date.today()
         total_assets = self.db.scalar(select(func.count()).select_from(Asset)) or 0
         assigned_assets = self.db.scalar(
-            select(func.count()).select_from(Asset).where(Asset.assigned_user_id.is_not(None))
+            select(func.count()).select_from(Asset).where(Asset.assigned_employee_id.is_not(None))
         ) or 0
         assets_in_maintenance = self.db.scalar(
             select(func.count())
@@ -40,6 +42,8 @@ class DashboardService:
         open_tickets = self.db.scalar(
             select(func.count()).select_from(MaintenanceTicket).where(MaintenanceTicket.closed_at.is_(None))
         ) or 0
+        software_license_alerts_raw = SoftwareLicenseService(self.db).build_license_alerts(today=today)
+        software_licenses_expiring_soon = len(software_license_alerts_raw)
         warranties_expiring_soon = self.db.scalar(
             select(func.count())
             .select_from(Asset)
@@ -100,7 +104,7 @@ class DashboardService:
             )
             .join(AssetStatus, AssetStatus.id == Asset.status_id)
             .join(Location, Location.id == Asset.location_id, isouter=True)
-            .where(Asset.assigned_user_id.is_(None))
+            .where(Asset.assigned_employee_id.is_(None))
             .where(AssetStatus.code == "IN_STOCK")
             .order_by(Asset.created_at.desc())
             .limit(6)
@@ -141,11 +145,11 @@ class DashboardService:
                 AssetAssignment.asset_id,
                 Asset.asset_tag,
                 Asset.name,
-                User.full_name,
+                Employee.full_name,
                 AssetAssignment.expected_return_at,
             )
             .join(Asset, Asset.id == AssetAssignment.asset_id)
-            .join(User, User.id == AssetAssignment.user_id)
+            .join(Employee, Employee.id == AssetAssignment.employee_id)
             .where(AssetAssignment.returned_at.is_(None))
             .where(AssetAssignment.expected_return_at.is_not(None))
             .order_by(AssetAssignment.expected_return_at.asc())
@@ -196,7 +200,7 @@ class DashboardService:
         lifecycle_alerts.sort(key=lambda item: (item.days_remaining, item.asset_tag))
         assignment_alerts: list[DashboardAssignmentAlertResponse] = []
         for row in assignment_candidates:
-            asset_id, asset_tag, asset_name, assigned_user_name, expected_return_at = row
+            asset_id, asset_tag, asset_name, assigned_employee_name, expected_return_at = row
             if expected_return_at is None:
                 continue
             days_remaining = (expected_return_at.date() - today).days
@@ -206,7 +210,7 @@ class DashboardService:
                         asset_id=asset_id,
                         asset_tag=asset_tag,
                         asset_name=asset_name,
-                        assigned_user_name=assigned_user_name,
+                        assigned_employee_name=assigned_employee_name,
                         expected_return_at=expected_return_at.isoformat(),
                         days_remaining=days_remaining,
                         alert_type="OVERDUE" if days_remaining < 0 else "RETURN_DUE",
@@ -238,10 +242,21 @@ class DashboardService:
             notifications.append(
                 DashboardNotificationResponse(
                     title="Rientro asset da verificare",
-                    body=f"{alert.asset_tag} · {alert.assigned_user_name} · {body_suffix}",
+                    body=f"{alert.asset_tag} · {alert.assigned_employee_name} · {body_suffix}",
                     severity=severity,
                     link=f"/assets/{alert.asset_id}/assignments",
                     category="Assegnazioni",
+                )
+            )
+        for alert in software_license_alerts_raw[:4]:
+            severity = "high" if alert["days_remaining"] <= 7 else "medium"
+            notifications.append(
+                DashboardNotificationResponse(
+                    title="Licenza software in scadenza",
+                    body=f'{alert["product_name"]} entro {alert["days_remaining"]} giorni',
+                    severity=severity,
+                    link=f'/software-licenses/{alert["license_id"]}',
+                    category="Licenze",
                 )
             )
 
@@ -250,6 +265,7 @@ class DashboardService:
             assigned_assets=assigned_assets,
             assets_in_maintenance=assets_in_maintenance,
             open_maintenance_tickets=open_tickets,
+            software_licenses_expiring_soon=software_licenses_expiring_soon,
             warranties_expiring_soon=warranties_expiring_soon,
             end_of_life_soon=end_of_life_soon,
             assignments_due_soon=assignments_due_soon,
@@ -290,6 +306,10 @@ class DashboardService:
             lifecycle_alerts=lifecycle_alerts[:6],
             assignment_alerts=assignment_alerts[:6],
             notifications=notifications[:6],
+            software_license_alerts=[
+                DashboardSoftwareLicenseAlertResponse(**item)
+                for item in software_license_alerts_raw[:6]
+            ],
             assets_ready_for_assignment=[
                 DashboardWorkflowAssetResponse(
                     asset_id=row[0],

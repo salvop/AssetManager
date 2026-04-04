@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from base64 import b64decode
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.asset import Asset, AssetDocument, AssetEventLog
 from app.models.assignment import AssetAssignment
+from app.models.employee import Employee
 from app.models.lookup import AssetCategory, AssetModel, AssetStatus, Department, Location, Role, Vendor
 from app.models.maintenance import MaintenanceTicket
 from app.models.user import User, UserRole
@@ -108,6 +110,69 @@ def seed_users(db: Session) -> None:
     db.flush()
 
 
+def seed_employees(db: Session) -> None:
+    employees = [
+        {
+            "id": 1,
+            "department_id": 1,
+            "employee_code": "EMP-00001",
+            "full_name": "System Administrator",
+            "email": "admin@example.com",
+            "is_active": True,
+            "notes": "Profilo persona collegato all'account admin.",
+        },
+        {
+            "id": 2,
+            "department_id": 1,
+            "employee_code": "EMP-00002",
+            "full_name": "Martina Rinaldi",
+            "email": "martina.rinaldi@example.com",
+            "is_active": True,
+            "notes": "Responsabile asset management.",
+        },
+        {
+            "id": 3,
+            "department_id": 1,
+            "employee_code": "EMP-00003",
+            "full_name": "Luca Bianchi",
+            "email": "luca.bianchi@example.com",
+            "is_active": True,
+            "notes": "Operatore interno.",
+        },
+        {
+            "id": 4,
+            "department_id": 2,
+            "employee_code": "EMP-00004",
+            "full_name": "Giulia Conti",
+            "email": "giulia.conti@example.com",
+            "is_active": True,
+            "notes": "Utente viewer interno.",
+        },
+        {
+            "id": 5,
+            "department_id": 1,
+            "employee_code": "EMP-00005",
+            "full_name": "Marco Rossi",
+            "email": "marco.rossi@example.com",
+            "is_active": True,
+            "notes": "Dipendente assegnatario area IT.",
+        },
+        {
+            "id": 6,
+            "department_id": 2,
+            "employee_code": "EMP-00006",
+            "full_name": "Elena Verdi",
+            "email": "elena.verdi@example.com",
+            "is_active": True,
+            "notes": "Dipendente assegnataria area operations.",
+        },
+    ]
+
+    for employee_data in employees:
+        upsert_model(db, Employee, employee_data["id"], **{k: v for k, v in employee_data.items() if k != "id"})
+    db.flush()
+
+
 def seed_vendors_and_models(db: Session) -> None:
     vendors = [
         (1, {"name": "Dell Italia", "contact_email": "support@dell.example.com", "contact_phone": "+39-02-5555001"}),
@@ -127,6 +192,21 @@ def seed_vendors_and_models(db: Session) -> None:
     for model_id, payload in models:
         upsert_model(db, AssetModel, model_id, **payload)
 
+    category_updates = [
+        (1, {"parent_id": None}),
+        (2, {"parent_id": None}),
+        (3, {"parent_id": None}),
+        (4, {"parent_id": None}),
+        (5, {"parent_id": None}),
+        (6, {"parent_id": None}),
+    ]
+    for category_id, payload in category_updates:
+        category = db.get(AssetCategory, category_id)
+        if category is not None:
+            for key, value in payload.items():
+                setattr(category, key, value)
+    db.flush()
+
 
 def get_status_id_by_code(db: Session, code: str) -> int:
     status_id = db.scalar(select(AssetStatus.id).where(AssetStatus.code == code))
@@ -137,7 +217,7 @@ def get_status_id_by_code(db: Session, code: str) -> int:
 
 def clear_seeded_domain_data(db: Session) -> None:
     seeded_asset_ids = [1, 2, 3, 4, 5, 6]
-    seeded_document_ids = [1, 2]
+    seeded_document_ids = [1, 2, 3]
     seeded_ticket_ids = [1, 2, 3]
     seeded_assignment_ids = [1, 2]
     seeded_event_ids = list(range(1, 25))
@@ -183,12 +263,14 @@ def seed_assets_domain_data(db: Session) -> None:
             asset_tag="LT-2026-001",
             name="Notebook Direzione IT",
             serial_number="LNV-T14-0001",
+            asset_type="Notebook",
+            brand="Lenovo",
             category_id=1,
             model_id=1,
             status_id=status_ids["ASSIGNED"],
             location_id=1,
             vendor_id=2,
-            assigned_user_id=5,
+            assigned_employee_id=5,
             current_department_id=1,
             description="Portatile principale assegnato al team IT.",
             purchase_date=date(2025, 11, 18),
@@ -196,18 +278,24 @@ def seed_assets_domain_data(db: Session) -> None:
             expected_end_of_life_date=date(2029, 11, 18),
             disposal_date=None,
             cost_center="CC-IT-001",
+            location_floor="3",
+            location_room="3.14",
+            location_rack=None,
+            location_slot=None,
         ),
         Asset(
             id=2,
             asset_tag="MON-2026-014",
             name="Monitor Sala Operativa",
             serial_number="DLL-U2723-0014",
+            asset_type="Monitor",
+            brand="Dell",
             category_id=3,
             model_id=2,
             status_id=status_ids["IN_STOCK"],
             location_id=2,
             vendor_id=1,
-            assigned_user_id=None,
+            assigned_employee_id=None,
             current_department_id=1,
             description="Monitor disponibile in magazzino IT.",
             purchase_date=date(2025, 12, 4),
@@ -215,18 +303,24 @@ def seed_assets_domain_data(db: Session) -> None:
             expected_end_of_life_date=date(2030, 12, 4),
             disposal_date=None,
             cost_center="CC-IT-002",
+            location_floor="1",
+            location_room="Magazzino IT",
+            location_rack=None,
+            location_slot="Shelf-02",
         ),
         Asset(
             id=3,
             asset_tag="PHN-2026-003",
             name="Telefono commerciale Elena",
             serial_number="APL-IP15-0003",
+            asset_type="Smartphone",
+            brand="Apple",
             category_id=4,
             model_id=3,
             status_id=status_ids["MAINTENANCE"],
             location_id=3,
             vendor_id=1,
-            assigned_user_id=None,
+            assigned_employee_id=None,
             current_department_id=2,
             description="Smartphone aziendale in verifica per batteria difettosa.",
             purchase_date=date(2025, 10, 2),
@@ -234,18 +328,24 @@ def seed_assets_domain_data(db: Session) -> None:
             expected_end_of_life_date=date(2028, 10, 2),
             disposal_date=None,
             cost_center="CC-SALES-001",
+            location_floor="2",
+            location_room="Supporto tecnico",
+            location_rack=None,
+            location_slot=None,
         ),
         Asset(
             id=4,
             asset_tag="DST-2024-009",
             name="Desktop front office",
             serial_number="HP-ED-0009",
+            asset_type="Desktop",
+            brand="HP",
             category_id=2,
             model_id=4,
             status_id=status_ids["RETIRED"],
             location_id=3,
             vendor_id=3,
-            assigned_user_id=None,
+            assigned_employee_id=None,
             current_department_id=2,
             description="Desktop ritirato dal servizio e sostituito.",
             purchase_date=date(2023, 6, 12),
@@ -253,18 +353,24 @@ def seed_assets_domain_data(db: Session) -> None:
             expected_end_of_life_date=date(2027, 6, 12),
             disposal_date=None,
             cost_center="CC-HR-002",
+            location_floor="0",
+            location_room="Front office",
+            location_rack=None,
+            location_slot=None,
         ),
         Asset(
             id=5,
             asset_tag="SRV-2025-002",
             name="Server virtualizzazione nodo 2",
             serial_number="DLL-R760-0002",
+            asset_type="Server",
+            brand="Dell",
             category_id=6,
             model_id=5,
             status_id=status_ids["IN_STOCK"],
             location_id=1,
             vendor_id=1,
-            assigned_user_id=None,
+            assigned_employee_id=None,
             current_department_id=1,
             description="Server on-premise predisposto per cluster interno.",
             purchase_date=date(2025, 7, 20),
@@ -272,18 +378,24 @@ def seed_assets_domain_data(db: Session) -> None:
             expected_end_of_life_date=date(2032, 7, 20),
             disposal_date=None,
             cost_center="CC-INFRA-010",
+            location_floor="-1",
+            location_room="Sala server",
+            location_rack="Rack-A",
+            location_slot="U18-U20",
         ),
         Asset(
             id=6,
             asset_tag="LT-2023-011",
             name="Notebook dismesso area finance",
             serial_number="LNV-T14-0011",
+            asset_type="Notebook",
+            brand="Lenovo",
             category_id=1,
             model_id=1,
             status_id=status_ids["DISPOSED"],
             location_id=2,
             vendor_id=2,
-            assigned_user_id=None,
+            assigned_employee_id=None,
             current_department_id=3,
             description="Asset dismesso e in attesa di smaltimento definitivo.",
             purchase_date=date(2023, 1, 15),
@@ -291,6 +403,10 @@ def seed_assets_domain_data(db: Session) -> None:
             expected_end_of_life_date=date(2027, 1, 15),
             disposal_date=date(2026, 3, 15),
             cost_center="CC-FIN-004",
+            location_floor="1",
+            location_room="Magazzino dismissioni",
+            location_rack=None,
+            location_slot="DISP-11",
         ),
     ]
     db.add_all(assets)
@@ -300,7 +416,7 @@ def seed_assets_domain_data(db: Session) -> None:
         AssetAssignment(
             id=1,
             asset_id=1,
-            user_id=5,
+            employee_id=5,
             assigned_by_user_id=2,
             department_id=1,
             location_id=1,
@@ -312,7 +428,7 @@ def seed_assets_domain_data(db: Session) -> None:
         AssetAssignment(
             id=2,
             asset_id=4,
-            user_id=6,
+            employee_id=6,
             assigned_by_user_id=2,
             department_id=2,
             location_id=3,
@@ -365,14 +481,14 @@ def seed_assets_domain_data(db: Session) -> None:
 
     events = [
         AssetEventLog(id=1, asset_id=1, event_type="CREATE", performed_by_user_id=2, summary="Asset LT-2026-001 creato", details_json={"asset_tag": "LT-2026-001"}),
-        AssetEventLog(id=2, asset_id=1, event_type="ASSIGN", performed_by_user_id=2, summary="Asset assegnato a Marco Rossi", details_json={"assigned_user_id": 5}),
+        AssetEventLog(id=2, asset_id=1, event_type="ASSIGN", performed_by_user_id=2, summary="Asset assegnato a Marco Rossi", details_json={"assigned_employee_id": 5, "assigned_employee_name": "Marco Rossi"}),
         AssetEventLog(id=3, asset_id=2, event_type="CREATE", performed_by_user_id=2, summary="Asset MON-2026-014 creato", details_json={"asset_tag": "MON-2026-014"}),
         AssetEventLog(id=4, asset_id=2, event_type="LOCATION_CHANGE", performed_by_user_id=3, summary="Asset spostato a magazzino IT", details_json={"to_location": "HQ-IT"}),
         AssetEventLog(id=5, asset_id=3, event_type="CREATE", performed_by_user_id=2, summary="Asset PHN-2026-003 creato", details_json={"asset_tag": "PHN-2026-003"}),
         AssetEventLog(id=6, asset_id=3, event_type="STATUS_CHANGE", performed_by_user_id=3, summary="Stato cambiato da ASSIGNED a MAINTENANCE", details_json={"from_status": "ASSIGNED", "to_status": "MAINTENANCE"}),
         AssetEventLog(id=7, asset_id=3, event_type="MAINTENANCE_OPEN", performed_by_user_id=3, summary="Ticket manutenzione aperto: Verifica batteria e surriscaldamento", details_json={"ticket_id": 1}),
         AssetEventLog(id=8, asset_id=4, event_type="CREATE", performed_by_user_id=2, summary="Asset DST-2024-009 creato", details_json={"asset_tag": "DST-2024-009"}),
-        AssetEventLog(id=9, asset_id=4, event_type="ASSIGN", performed_by_user_id=2, summary="Asset assegnato a Elena Verdi", details_json={"assigned_user_id": 6}),
+        AssetEventLog(id=9, asset_id=4, event_type="ASSIGN", performed_by_user_id=2, summary="Asset assegnato a Elena Verdi", details_json={"assigned_employee_id": 6, "assigned_employee_name": "Elena Verdi"}),
         AssetEventLog(id=10, asset_id=4, event_type="RETURN", performed_by_user_id=2, summary="Asset rientrato", details_json={"notes": "Sostituito con nuovo desktop."}),
         AssetEventLog(id=11, asset_id=4, event_type="STATUS_CHANGE", performed_by_user_id=2, summary="Stato cambiato da IN_STOCK a RETIRED", details_json={"from_status": "IN_STOCK", "to_status": "RETIRED"}),
         AssetEventLog(id=12, asset_id=4, event_type="MAINTENANCE_OPEN", performed_by_user_id=2, summary="Ticket manutenzione aperto: Verifica guasto alimentatore", details_json={"ticket_id": 3}),
@@ -409,10 +525,22 @@ def seed_assets_domain_data(db: Session) -> None:
             "text/plain",
             "Checklist manutenzione server SRV-2025-002.\nFirmware RAID da aggiornare.\n",
         ),
+        (
+            3,
+            1,
+            2,
+            "foto-lt-2026-001.png",
+            "seed-asset-1-photo.png",
+            "image/png",
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pX6lz8AAAAASUVORK5CYII=",
+        ),
     ]
     for document_id, asset_id, uploaded_by_user_id, file_name, stored_name, content_type, content in documents:
         target = storage_root / stored_name
-        target.write_text(content, encoding="utf-8")
+        if content_type.startswith("image/"):
+            target.write_bytes(b64decode(content))
+        else:
+            target.write_text(content, encoding="utf-8")
         db.add(
             AssetDocument(
                 id=document_id,
@@ -432,6 +560,7 @@ def main() -> None:
     try:
         run_sql_file(db, Path(__file__).resolve().parents[3] / "database" / "seeds" / "seed_reference_data.sql")
         seed_users(db)
+        seed_employees(db)
         seed_vendors_and_models(db)
         seed_assets_domain_data(db)
         db.commit()

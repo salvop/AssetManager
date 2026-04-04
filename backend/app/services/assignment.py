@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.assignment import AssetAssignment
 from app.repositories.asset import AssetRepository
 from app.repositories.assignment import AssignmentRepository
+from app.repositories.employee import EmployeeRepository
 from app.repositories.lookup import LookupRepository
 from app.repositories.user import UserRepository
 from app.schemas.asset import AssetAssignRequest, AssetAssignmentResponse, AssetReturnRequest
@@ -19,6 +20,7 @@ class AssignmentService:
         self.db = db
         self.asset_repository = AssetRepository(db)
         self.assignment_repository = AssignmentRepository(db)
+        self.employee_repository = EmployeeRepository(db)
         self.lookup_repository = LookupRepository(db)
         self.user_repository = UserRepository(db)
         self.event_service = AssetEventService(db)
@@ -32,8 +34,10 @@ class AssignmentService:
         current_user_id: int,
     ) -> AssetAssignmentResponse:
         asset = require_resource(self.asset_repository.get_by_id(asset_id), "Asset not found")
-        target_user = require_resource(self.user_repository.get_by_id(payload.user_id), "User not found")
+        target_employee = require_resource(self.employee_repository.get_by_id(payload.employee_id), "Employee not found")
         current_user = require_resource(self.user_repository.get_by_id(current_user_id), "Current user not found")
+        if not target_employee.is_active:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Employee is not active")
         asset_status = require_resource(self.lookup_repository.get_status(asset.status_id), "Asset status not found")
         if asset_status.code in {"RETIRED", "DISPOSED"}:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Asset cannot be assigned in current status")
@@ -48,7 +52,7 @@ class AssignmentService:
 
         assignment = AssetAssignment(
             asset_id=asset.id,
-            user_id=target_user.id,
+            employee_id=target_employee.id,
             assigned_by_user_id=current_user_id,
             department_id=payload.department_id,
             location_id=payload.location_id,
@@ -58,7 +62,7 @@ class AssignmentService:
         self.assignment_repository.add(assignment)
 
         assigned_status = require_resource(self.lookup_repository.get_status_by_code("ASSIGNED"), "ASSIGNED status not found")
-        asset.assigned_user_id = target_user.id
+        asset.assigned_employee_id = target_employee.id
         asset.status_id = assigned_status.id
         if payload.department_id is not None:
             asset.current_department_id = payload.department_id
@@ -69,14 +73,14 @@ class AssignmentService:
         self.event_service.log_event(
             asset_id=asset.id,
             event_type="ASSIGN",
-            summary=f"Asset assigned to {target_user.full_name}",
+            summary=f"Asset assigned to {target_employee.full_name}",
             performed_by_user_id=current_user_id,
-            details={"assigned_user_id": target_user.id, "notes": payload.notes},
+            details={"assigned_employee_id": target_employee.id, "assigned_employee_name": target_employee.full_name, "notes": payload.notes},
         )
         self.db.commit()
         self.email_notification_service.notify_asset_assigned(
             asset=asset,
-            target_user=target_user,
+            target_employee=target_employee,
             assigned_by_user=current_user,
         )
         return self._build_assignment_response(assignment)
@@ -92,13 +96,13 @@ class AssignmentService:
         assignment = self.assignment_repository.get_open_for_asset(asset_id)
         if assignment is None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Asset does not have an open assignment")
-        previous_user = self.user_repository.get_by_id(assignment.user_id)
+        previous_employee = self.employee_repository.get_by_id(assignment.employee_id)
         current_user = require_resource(self.user_repository.get_by_id(current_user_id), "Current user not found")
 
         assignment.returned_at = datetime.now(UTC).replace(tzinfo=None)
         assignment.notes = payload.notes or assignment.notes
         in_stock_status = require_resource(self.lookup_repository.get_status_by_code("IN_STOCK"), "IN_STOCK status not found")
-        asset.assigned_user_id = None
+        asset.assigned_employee_id = None
         asset.status_id = in_stock_status.id
         self.db.flush()
 
@@ -112,7 +116,7 @@ class AssignmentService:
         self.db.commit()
         self.email_notification_service.notify_asset_returned(
             asset=asset,
-            previous_user=previous_user,
+            previous_employee=previous_employee,
             returned_by_user=current_user,
         )
         return self._build_assignment_response(assignment)
@@ -123,11 +127,11 @@ class AssignmentService:
         return [self._build_assignment_response(item) for item in assignments]
 
     def _build_assignment_response(self, assignment: AssetAssignment) -> AssetAssignmentResponse:
-        user = require_resource(self.user_repository.get_by_id(assignment.user_id), "Assigned user not found")
+        employee = require_resource(self.employee_repository.get_by_id(assignment.employee_id), "Assigned employee not found")
         assigned_by_user = require_resource(
             self.user_repository.get_by_id(assignment.assigned_by_user_id),
             "Assigned by user not found",
         )
         department = self.lookup_repository.get_department(assignment.department_id) if assignment.department_id else None
         location = self.lookup_repository.get_location(assignment.location_id) if assignment.location_id else None
-        return assignment_response(assignment, user, assigned_by_user, department, location)
+        return assignment_response(assignment, employee, assigned_by_user, department, location)

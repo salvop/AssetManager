@@ -4,6 +4,7 @@ from email.message import EmailMessage
 
 from app.core.config import settings
 from app.models.asset import Asset
+from app.models.employee import Employee
 from app.models.maintenance import MaintenanceTicket
 from app.models.user import User
 
@@ -41,12 +42,12 @@ class EmailNotificationService:
                 client.send_message(message)
         return True
 
-    def notify_asset_assigned(self, *, asset: Asset, target_user: User, assigned_by_user: User) -> None:
-        recipients = [target_user.email, *settings.notification_default_recipients]
+    def notify_asset_assigned(self, *, asset: Asset, target_employee: Employee, assigned_by_user: User) -> None:
+        recipients = [target_employee.email, *settings.notification_default_recipients]
         subject = f"Asset assegnato: {asset.asset_tag}"
         body = "\n".join(
             [
-                f"L'asset {asset.asset_tag} - {asset.name} e stato assegnato a {target_user.full_name}.",
+                f"L'asset {asset.asset_tag} - {asset.name} e stato assegnato a {target_employee.full_name}.",
                 f"Assegnato da: {assigned_by_user.full_name}",
                 "",
                 "Accedi al sistema Asset Manager per verificare i dettagli operativi.",
@@ -54,8 +55,8 @@ class EmailNotificationService:
         )
         self._safe_send(recipients=recipients, subject=subject, body=body)
 
-    def notify_asset_returned(self, *, asset: Asset, previous_user: User | None, returned_by_user: User) -> None:
-        recipients = [previous_user.email if previous_user else None, *settings.notification_default_recipients]
+    def notify_asset_returned(self, *, asset: Asset, previous_employee: Employee | None, returned_by_user: User) -> None:
+        recipients = [previous_employee.email if previous_employee else None, *settings.notification_default_recipients]
         subject = f"Asset rientrato: {asset.asset_tag}"
         body = "\n".join(
             [

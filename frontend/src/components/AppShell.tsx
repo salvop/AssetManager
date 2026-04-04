@@ -7,6 +7,8 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 const baseNavItems = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/assets", label: "Asset" },
+  { to: "/employees-directory", label: "Persone" },
+  { to: "/software-licenses", label: "Licenze" },
   { to: "/maintenance-tickets", label: "Manutenzione" },
   { to: "/lookups", label: "Tabelle" },
 ];

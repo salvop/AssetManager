@@ -1,6 +1,8 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+
+from app.schemas.employee import EmployeeReferenceResponse
 
 
 class AssetReferenceResponse(BaseModel):
@@ -20,14 +22,20 @@ class AssetListItemResponse(BaseModel):
     asset_tag: str
     name: str
     serial_number: str | None
+    asset_type: str | None
+    brand: str | None
     status: AssetReferenceResponse
     category: AssetReferenceResponse
     location: AssetReferenceResponse | None
-    assigned_user: UserReferenceResponse | None
+    assigned_employee: EmployeeReferenceResponse | None
     purchase_date: date | None
     warranty_expiry_date: date | None
     expected_end_of_life_date: date | None
     cost_center: str | None
+    location_floor: str | None
+    location_room: str | None
+    location_rack: str | None
+    location_slot: str | None
 
 
 class AssetListResponse(BaseModel):
@@ -43,6 +51,8 @@ class AssetCreateRequest(BaseModel):
     category_id: int
     status_id: int
     serial_number: str | None = None
+    asset_type: str | None = None
+    brand: str | None = None
     model_id: int | None = None
     location_id: int | None = None
     vendor_id: int | None = None
@@ -53,6 +63,10 @@ class AssetCreateRequest(BaseModel):
     expected_end_of_life_date: date | None = None
     disposal_date: date | None = None
     cost_center: str | None = None
+    location_floor: str | None = None
+    location_room: str | None = None
+    location_rack: str | None = None
+    location_slot: str | None = None
 
 
 class AssetUpdateRequest(BaseModel):
@@ -60,6 +74,8 @@ class AssetUpdateRequest(BaseModel):
     category_id: int
     status_id: int
     serial_number: str | None = None
+    asset_type: str | None = None
+    brand: str | None = None
     model_id: int | None = None
     location_id: int | None = None
     vendor_id: int | None = None
@@ -70,6 +86,10 @@ class AssetUpdateRequest(BaseModel):
     expected_end_of_life_date: date | None = None
     disposal_date: date | None = None
     cost_center: str | None = None
+    location_floor: str | None = None
+    location_room: str | None = None
+    location_rack: str | None = None
+    location_slot: str | None = None
 
 
 class AssetStatusChangeRequest(BaseModel):
@@ -83,7 +103,7 @@ class AssetLocationChangeRequest(BaseModel):
 
 
 class AssetAssignRequest(BaseModel):
-    user_id: int
+    employee_id: int
     department_id: int | None = None
     location_id: int | None = None
     expected_return_at: datetime | None = None
@@ -97,7 +117,7 @@ class AssetReturnRequest(BaseModel):
 class AssetAssignmentResponse(BaseModel):
     id: int
     asset_id: int
-    user: UserReferenceResponse
+    employee: EmployeeReferenceResponse
     assigned_by_user: UserReferenceResponse
     department: AssetReferenceResponse | None
     location: AssetReferenceResponse | None
@@ -131,19 +151,26 @@ class AssetDetailResponse(BaseModel):
     asset_tag: str
     name: str
     serial_number: str | None
+    asset_type: str | None
+    brand: str | None
     description: str | None
     purchase_date: date | None
     warranty_expiry_date: date | None
     expected_end_of_life_date: date | None
     disposal_date: date | None
     cost_center: str | None
+    location_floor: str | None
+    location_room: str | None
+    location_rack: str | None
+    location_slot: str | None
     category: AssetReferenceResponse
     model: AssetReferenceResponse | None
     status: AssetReferenceResponse
     location: AssetReferenceResponse | None
     vendor: AssetReferenceResponse | None
     current_department: AssetReferenceResponse | None
-    assigned_user: UserReferenceResponse | None
+    assigned_employee: EmployeeReferenceResponse | None
     assignments: list[AssetAssignmentResponse]
     events: list[AssetEventResponse]
     documents: list[AssetDocumentResponse]
+    photo_document: AssetDocumentResponse | None

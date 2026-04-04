@@ -40,7 +40,7 @@ class DashboardAssignmentAlertResponse(BaseModel):
     asset_id: int
     asset_tag: str
     asset_name: str
-    assigned_user_name: str
+    assigned_employee_name: str
     expected_return_at: str
     days_remaining: int
     alert_type: str
@@ -54,6 +54,14 @@ class DashboardNotificationResponse(BaseModel):
     category: str
 
 
+class DashboardSoftwareLicenseAlertResponse(BaseModel):
+    license_id: int
+    product_name: str
+    expiry_date: str
+    days_remaining: int
+    available_quantity: int
+
+
 class DashboardWorkflowAssetResponse(BaseModel):
     asset_id: int
     asset_tag: str
@@ -61,7 +69,7 @@ class DashboardWorkflowAssetResponse(BaseModel):
     status_code: str
     status_name: str
     location_name: str | None = None
-    assigned_user_name: str | None = None
+    assigned_employee_name: str | None = None
 
 
 class DashboardWorkflowTicketResponse(BaseModel):
@@ -80,6 +88,7 @@ class DashboardSummaryResponse(BaseModel):
     assigned_assets: int
     assets_in_maintenance: int
     open_maintenance_tickets: int
+    software_licenses_expiring_soon: int
     warranties_expiring_soon: int
     end_of_life_soon: int
     assignments_due_soon: int
@@ -91,6 +100,7 @@ class DashboardSummaryResponse(BaseModel):
     lifecycle_alerts: list[DashboardLifecycleAlertResponse]
     assignment_alerts: list[DashboardAssignmentAlertResponse]
     notifications: list[DashboardNotificationResponse]
+    software_license_alerts: list[DashboardSoftwareLicenseAlertResponse]
     assets_ready_for_assignment: list[DashboardWorkflowAssetResponse]
     retired_assets_pending_disposal: list[DashboardWorkflowAssetResponse]
     maintenance_queue: list[DashboardWorkflowTicketResponse]

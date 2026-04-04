@@ -18,7 +18,7 @@ type AssetListParams = {
   modelId?: number;
   locationId?: number;
   departmentId?: number;
-  assignedUserId?: number;
+  assignedEmployeeId?: number;
   vendorId?: number;
   page?: number;
   pageSize?: number;
@@ -32,7 +32,7 @@ export function getAssets(params: AssetListParams = {}): Promise<AssetListRespon
   if (params.modelId) searchParams.set("model_id", String(params.modelId));
   if (params.locationId) searchParams.set("location_id", String(params.locationId));
   if (params.departmentId) searchParams.set("department_id", String(params.departmentId));
-  if (params.assignedUserId) searchParams.set("assigned_user_id", String(params.assignedUserId));
+  if (params.assignedEmployeeId) searchParams.set("assigned_employee_id", String(params.assignedEmployeeId));
   if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
   searchParams.set("page", String(params.page ?? 1));
   searchParams.set("page_size", String(params.pageSize ?? 20));
@@ -112,6 +112,10 @@ export async function downloadDocument(documentId: number) {
   window.URL.revokeObjectURL(url);
 }
 
+export function fetchDocumentBlob(documentId: number) {
+  return apiDownload(`/documents/${documentId}/download`);
+}
+
 export async function exportAssetsCsv(params: AssetListParams = {}) {
   const searchParams = new URLSearchParams();
   if (params.search) searchParams.set("search", params.search);
@@ -120,7 +124,7 @@ export async function exportAssetsCsv(params: AssetListParams = {}) {
   if (params.modelId) searchParams.set("model_id", String(params.modelId));
   if (params.locationId) searchParams.set("location_id", String(params.locationId));
   if (params.departmentId) searchParams.set("department_id", String(params.departmentId));
-  if (params.assignedUserId) searchParams.set("assigned_user_id", String(params.assignedUserId));
+  if (params.assignedEmployeeId) searchParams.set("assigned_employee_id", String(params.assignedEmployeeId));
   if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
   const query = searchParams.toString();
   const { blob, filename } = await apiDownload(`/assets/export/csv${query ? `?${query}` : ""}`);
@@ -142,7 +146,7 @@ export async function exportAssetsXlsx(params: AssetListParams = {}) {
   if (params.modelId) searchParams.set("model_id", String(params.modelId));
   if (params.locationId) searchParams.set("location_id", String(params.locationId));
   if (params.departmentId) searchParams.set("department_id", String(params.departmentId));
-  if (params.assignedUserId) searchParams.set("assigned_user_id", String(params.assignedUserId));
+  if (params.assignedEmployeeId) searchParams.set("assigned_employee_id", String(params.assignedEmployeeId));
   if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
   const query = searchParams.toString();
   const { blob, filename } = await apiDownload(`/assets/export/xlsx${query ? `?${query}` : ""}`);

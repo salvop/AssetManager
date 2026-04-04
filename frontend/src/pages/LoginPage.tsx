@@ -54,17 +54,22 @@ export function LoginPage() {
 
         <div className="mt-8 space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Username</label>
+            <label htmlFor="login-username" className="mb-2 block text-sm font-medium text-slate-700">Username</label>
             <input
+              id="login-username"
+              autoComplete="username"
+              spellCheck={false}
               {...register("username")}
               className="w-full rounded-2xl border border-slate-300 bg-white/85 px-4 py-3 outline-none ring-brand-500 transition focus:ring-2"
             />
             {errors.username && <p className="mt-1 text-sm text-rose-600">{errors.username.message}</p>}
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
+            <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
             <input
+              id="login-password"
               type="password"
+              autoComplete="current-password"
               {...register("password")}
               className="w-full rounded-2xl border border-slate-300 bg-white/85 px-4 py-3 outline-none ring-brand-500 transition focus:ring-2"
             />
@@ -73,10 +78,10 @@ export function LoginPage() {
         </div>
 
         <button className="mt-8 w-full rounded-2xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_rgba(36,88,63,0.24)] transition hover:bg-brand-700">
-          {loginMutation.isPending ? "Accesso in corso..." : "Accedi"}
+          {loginMutation.isPending ? "Accesso in corso…" : "Accedi"}
         </button>
         {loginMutation.error && (
-          <p className="mt-3 text-sm text-rose-600">{loginMutation.error.message}</p>
+          <p className="mt-3 text-sm text-rose-600" aria-live="polite">{loginMutation.error.message}</p>
         )}
       </form>
     </div>

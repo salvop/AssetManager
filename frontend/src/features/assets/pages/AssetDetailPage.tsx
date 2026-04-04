@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
@@ -9,14 +9,15 @@ import {
   changeAssetStatus,
   deleteDocument,
   downloadDocument,
+  fetchDocumentBlob,
   returnAsset,
   uploadAssetDocument,
-} from "../api/assets";
-import { createMaintenanceTicket } from "../api/maintenance";
+} from "../../../api/assets";
+import { createMaintenanceTicket } from "../../../api/maintenance";
+import type { AssetEvent } from "../../../types/api";
 import { useAsset } from "../hooks/useAssets";
 import { useAssetMaintenance } from "../hooks/useAssetMaintenance";
-import { useLookupsBundle } from "../hooks/useLookups";
-import type { AssetEvent } from "../types/api";
+import { useLookupsBundle } from "../../../hooks/useLookups";
 
 const inputClassName =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100";
@@ -27,13 +28,54 @@ export function AssetDetailPage() {
   const queryClient = useQueryClient();
   const { data: asset, isLoading, error } = useAsset(assetId);
   const { data: maintenanceTickets } = useAssetMaintenance(assetId);
-  const { users, statuses, locations, departments, isLoading: areLookupsLoading } = useLookupsBundle();
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const { employees, statuses, locations, departments, isLoading: areLookupsLoading } = useLookupsBundle({
+    departments: true,
+    locations: true,
+    statuses: true,
+    employees: true,
+    vendors: false,
+    categories: false,
+    models: false,
+    users: false,
+  });
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedStatusId, setSelectedStatusId] = useState("");
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketDescription, setTicketDescription] = useState("");
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    let objectUrl: string | null = null;
+
+    async function loadPhotoPreview() {
+      if (!asset?.photo_document) {
+        setPhotoPreviewUrl(null);
+        return;
+      }
+      try {
+        const { blob } = await fetchDocumentBlob(asset.photo_document.id);
+        objectUrl = window.URL.createObjectURL(blob);
+        if (isMounted) {
+          setPhotoPreviewUrl(objectUrl);
+        }
+      } catch {
+        if (isMounted) {
+          setPhotoPreviewUrl(null);
+        }
+      }
+    }
+
+    void loadPhotoPreview();
+    return () => {
+      isMounted = false;
+      if (objectUrl) {
+        window.URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [asset?.photo_document]);
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ["asset", assetId] });
@@ -46,7 +88,7 @@ export function AssetDetailPage() {
   const assignMutation = useMutation({
     mutationFn: () =>
       assignAsset(assetId, {
-        user_id: Number(selectedUserId),
+        employee_id: Number(selectedEmployeeId),
         department_id: selectedDepartmentId ? Number(selectedDepartmentId) : null,
         location_id: selectedLocationId ? Number(selectedLocationId) : null,
       }),
@@ -96,7 +138,7 @@ export function AssetDetailPage() {
     },
   });
 
-  if (isLoading) return <p className="text-sm text-slate-500">Caricamento dettaglio asset...</p>;
+  if (isLoading) return <p className="text-sm text-slate-500">Caricamento dettaglio asset…</p>;
   if (error || !asset) return <p className="text-sm text-rose-600">{error?.message ?? "Asset non trovato"}</p>;
 
   return (
@@ -134,7 +176,7 @@ export function AssetDetailPage() {
       </div>
       <div className="grid gap-3 md:grid-cols-4">
           <HeroStat label="Stato" value={asset.status.name} />
-          <HeroStat label="Assegnato a" value={asset.assigned_user?.full_name ?? "Non assegnato"} />
+          <HeroStat label="Assegnato a" value={asset.assigned_employee?.full_name ?? "Non assegnato"} />
           <HeroStat label="Cost center" value={asset.cost_center ?? "-"} />
           <HeroStat label="Garanzia" value={asset.warranty_expiry_date ?? "-"} />
       </div>
@@ -178,13 +220,19 @@ export function AssetDetailPage() {
           <Panel title="Panoramica">
             <InfoGrid
               items={[
+                ["Tipo", asset.asset_type ?? "-"],
+                ["Marca", asset.brand ?? "-"],
                 ["Categoria", asset.category.name],
                 ["Modello", asset.model?.name ?? "-"],
                 ["Sede", asset.location?.name ?? "-"],
+                ["Piano", asset.location_floor ?? "-"],
+                ["Stanza", asset.location_room ?? "-"],
+                ["Rack", asset.location_rack ?? "-"],
+                ["Slot", asset.location_slot ?? "-"],
                 ["Dipartimento", asset.current_department?.name ?? "-"],
                 ["Fornitore", asset.vendor?.name ?? "-"],
                 ["Cost center", asset.cost_center ?? "-"],
-                ["Assegnato a", asset.assigned_user?.full_name ?? "-"],
+                ["Assegnato a", asset.assigned_employee?.full_name ?? "-"],
                 ["Numero seriale", asset.serial_number ?? "-"],
                 ["Data acquisto", asset.purchase_date ?? "-"],
                 ["Scadenza garanzia", asset.warranty_expiry_date ?? "-"],
@@ -193,6 +241,31 @@ export function AssetDetailPage() {
               ]}
             />
             {asset.description && <p className="mt-4 text-sm leading-6 text-slate-600">{asset.description}</p>}
+          </Panel>
+
+          <Panel title="Foto asset">
+            {asset.photo_document && photoPreviewUrl ? (
+              <div className="space-y-4">
+                <img
+                  src={photoPreviewUrl}
+                  alt={`Foto ${asset.name}`}
+                  width={1280}
+                  height={720}
+                  className="max-h-80 w-full rounded-2xl border border-slate-200 object-cover"
+                />
+                <div className="flex items-center justify-between text-sm text-slate-500">
+                  <span>{asset.photo_document.file_name}</span>
+                  <button
+                    onClick={() => downloadDocumentMutation.mutate(asset.photo_document!.id)}
+                    className="font-medium text-brand-700"
+                  >
+                    Scarica foto
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Nessuna foto dedicata disponibile. Carica un documento immagine per vedere l’anteprima asset.</p>
+            )}
           </Panel>
 
           <Panel title="Storico eventi">
@@ -238,7 +311,11 @@ export function AssetDetailPage() {
                       Scarica
                     </button>
                     <button
-                      onClick={() => deleteDocumentMutation.mutate(document.id)}
+                      onClick={() => {
+                        if (window.confirm(`Confermi l'eliminazione del documento "${document.file_name}"?`)) {
+                          deleteDocumentMutation.mutate(document.id);
+                        }
+                      }}
                       className="text-sm font-medium text-rose-600"
                     >
                       Elimina
@@ -248,7 +325,7 @@ export function AssetDetailPage() {
               ))}
             </div>
             {(uploadMutation.error || deleteDocumentMutation.error || downloadDocumentMutation.error) && (
-              <p className="mt-3 text-sm text-rose-600">
+              <p className="mt-3 text-sm text-rose-600" aria-live="polite">
                 {String(
                   uploadMutation.error?.message ||
                     deleteDocumentMutation.error?.message ||
@@ -277,7 +354,7 @@ export function AssetDetailPage() {
                 onClick={() => maintenanceMutation.mutate()}
                 className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
               >
-                {maintenanceMutation.isPending ? "Apertura..." : "Apri ticket di manutenzione"}
+                {maintenanceMutation.isPending ? "Apertura…" : "Apri ticket di manutenzione"}
               </button>
             </div>
 
@@ -305,11 +382,11 @@ export function AssetDetailPage() {
         <section className="space-y-6">
           <Panel title="Assegna asset" id="assignment-workflow">
             <div className="space-y-3">
-              <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className={inputClassName}>
-                <option value="">Seleziona utente</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name}
+              <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} className={inputClassName}>
+                <option value="">Seleziona assegnatario</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.full_name}
                   </option>
                 ))}
               </select>
@@ -330,18 +407,18 @@ export function AssetDetailPage() {
                 ))}
               </select>
               <button
-                disabled={!selectedUserId || assignMutation.isPending || areLookupsLoading}
+                disabled={!selectedEmployeeId || assignMutation.isPending || areLookupsLoading}
                 onClick={() => assignMutation.mutate()}
                 className="w-full rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
               >
                 {assignMutation.isPending ? "Assegnazione..." : "Assegna asset"}
               </button>
-              {asset.assigned_user && (
+              {asset.assigned_employee && (
                 <button
                   onClick={() => returnMutation.mutate()}
                   className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-50"
                 >
-                  {returnMutation.isPending ? "Rientro..." : "Registra rientro"}
+                  {returnMutation.isPending ? "Rientro…" : "Registra rientro"}
                 </button>
               )}
             </div>
@@ -513,7 +590,10 @@ function getEventPresentation(event: AssetEvent): {
         label: "Assegnazione",
         title: event.summary,
         tone: "bg-blue-100 text-blue-800",
-        rows: buildRows([["Utente assegnato", getNumber(details.assigned_user_id)?.toString()]]),
+        rows: buildRows([
+          ["Assegnatario", getString(details.assigned_employee_name)],
+          ["ID assegnatario", getNumber(details.assigned_employee_id)?.toString()],
+        ]),
         note,
       };
     case "RETURN":

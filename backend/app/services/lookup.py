@@ -45,7 +45,9 @@ class LookupService:
         return LookupItemResponse.model_validate(department)
 
     def create_location(self, payload: LookupCreateRequest) -> LookupItemResponse:
-        location = self.repository.add_location(Location(code=payload.code, name=payload.name))
+        if payload.parent_id is not None:
+            require_resource(self.repository.get_location(payload.parent_id), "Sede padre non trovata")
+        location = self.repository.add_location(Location(code=payload.code, name=payload.name, parent_id=payload.parent_id))
         self._commit_with_conflict("Esiste gia una sede con questo codice.")
         return LookupItemResponse.model_validate(location)
 
@@ -57,7 +59,9 @@ class LookupService:
         return LookupItemResponse.model_validate(vendor)
 
     def create_asset_category(self, payload: LookupCreateRequest) -> LookupItemResponse:
-        category = self.repository.add_asset_category(AssetCategory(code=payload.code, name=payload.name))
+        if payload.parent_id is not None:
+            require_resource(self.repository.get_category(payload.parent_id), "Categoria padre non trovata")
+        category = self.repository.add_asset_category(AssetCategory(code=payload.code, name=payload.name, parent_id=payload.parent_id))
         self._commit_with_conflict("Esiste gia una categoria con questo codice.")
         return LookupItemResponse.model_validate(category)
 
@@ -86,8 +90,13 @@ class LookupService:
 
     def update_location(self, location_id: int, payload: LookupUpdateRequest) -> LookupItemResponse:
         location = require_resource(self.repository.get_location(location_id), "Sede non trovata")
+        if payload.parent_id == location_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Una sede non puo essere figlia di se stessa.")
+        if payload.parent_id is not None:
+            require_resource(self.repository.get_location(payload.parent_id), "Sede padre non trovata")
         location.code = payload.code
         location.name = payload.name
+        location.parent_id = payload.parent_id
         self.repository.save(location)
         self._commit_with_conflict("Esiste gia una sede con questo codice.")
         return LookupItemResponse.model_validate(location)
@@ -103,8 +112,13 @@ class LookupService:
 
     def update_asset_category(self, category_id: int, payload: LookupUpdateRequest) -> LookupItemResponse:
         category = require_resource(self.repository.get_category(category_id), "Categoria asset non trovata")
+        if payload.parent_id == category_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Una categoria non puo essere figlia di se stessa.")
+        if payload.parent_id is not None:
+            require_resource(self.repository.get_category(payload.parent_id), "Categoria padre non trovata")
         category.code = payload.code
         category.name = payload.name
+        category.parent_id = payload.parent_id
         self.repository.save(category)
         self._commit_with_conflict("Esiste gia una categoria con questo codice.")
         return LookupItemResponse.model_validate(category)

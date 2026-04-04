@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 
 from app.models.asset import AssetDocument, AssetEventLog
+from app.models.employee import Employee
 from app.models.assignment import AssetAssignment
 from app.models.lookup import AssetCategory, AssetModel, AssetStatus, Department, Location, Vendor
 from app.models.user import User
@@ -13,6 +14,7 @@ from app.schemas.asset import (
     AssetReferenceResponse,
     UserReferenceResponse,
 )
+from app.schemas.employee import EmployeeReferenceResponse
 from app.schemas.maintenance import MaintenanceTicketResponse
 
 
@@ -30,9 +32,18 @@ def user_reference(user: User) -> UserReferenceResponse:
     return UserReferenceResponse(id=user.id, username=user.username, full_name=user.full_name)
 
 
+def employee_reference(employee: Employee) -> EmployeeReferenceResponse:
+    return EmployeeReferenceResponse(
+        id=employee.id,
+        employee_code=employee.employee_code,
+        full_name=employee.full_name,
+        email=employee.email,
+    )
+
+
 def assignment_response(
     assignment: AssetAssignment,
-    user: User,
+    employee: Employee,
     assigned_by_user: User,
     department: Department | None,
     location: Location | None,
@@ -40,7 +51,7 @@ def assignment_response(
     return AssetAssignmentResponse(
         id=assignment.id,
         asset_id=assignment.asset_id,
-        user=user_reference(user),
+        employee=employee_reference(employee),
         assigned_by_user=user_reference(assigned_by_user),
         department=asset_reference(department) if department else None,
         location=asset_reference(location) if location else None,

@@ -108,6 +108,10 @@ Funzionalita disponibili:
 - dettaglio completo asset
 - creazione asset
 - modifica asset
+- tipo asset e marca espliciti
+- dettaglio location fisica con piano, stanza, rack e slot
+- categorie gerarchiche con parent opzionale
+- foto asset dedicate tramite documenti immagine con anteprima in scheda asset
 
 Informazioni esposte nel dettaglio:
 
@@ -115,10 +119,16 @@ Informazioni esposte nel dettaglio:
 - nome
 - seriale
 - categoria
+- tipo
+- marca
 - modello
 - vendor
 - stato
 - sede
+- piano
+- stanza
+- rack
+- slot
 - dipartimento corrente
 - assegnatario corrente
 - descrizione

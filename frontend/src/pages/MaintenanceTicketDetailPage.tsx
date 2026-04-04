@@ -20,7 +20,16 @@ export function MaintenanceTicketDetailPage() {
   const ticketId = Number(params.ticketId);
   const queryClient = useQueryClient();
   const { data: ticket, isLoading, error } = useMaintenanceTicket(ticketId);
-  const { vendors } = useLookupsBundle();
+  const { vendors } = useLookupsBundle({
+    vendors: true,
+    departments: false,
+    locations: false,
+    categories: false,
+    models: false,
+    statuses: false,
+    employees: false,
+    users: false,
+  });
   const form = useForm<TicketFormValues>({
     values: {
       title: ticket?.title ?? "",

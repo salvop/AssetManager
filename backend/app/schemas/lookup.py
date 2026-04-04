@@ -12,6 +12,7 @@ class LookupItemResponse(BaseModel):
     category_id: int | None = None
     vendor_id: int | None = None
     manufacturer: str | None = None
+    parent_id: int | None = None
 
 
 class LookupListResponse(BaseModel):
@@ -21,11 +22,13 @@ class LookupListResponse(BaseModel):
 class LookupCreateRequest(BaseModel):
     code: str
     name: str
+    parent_id: int | None = None
 
 
 class LookupUpdateRequest(BaseModel):
     code: str
     name: str
+    parent_id: int | None = None
 
 
 class VendorCreateRequest(BaseModel):

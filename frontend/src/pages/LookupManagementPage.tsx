@@ -25,13 +25,22 @@ const inputClassName = "w-full rounded-md border border-slate-300 px-3 py-2";
 
 export function LookupManagementPage() {
   const queryClient = useQueryClient();
-  const { departments, locations, vendors, categories, models, isLoading, error } = useLookupsBundle();
+  const { departments, locations, vendors, categories, models, isLoading, error } = useLookupsBundle({
+    departments: true,
+    locations: true,
+    vendors: true,
+    categories: true,
+    models: true,
+    statuses: false,
+    employees: false,
+    users: false,
+  });
 
   const [department, setDepartment] = useState({ code: "", name: "" });
   const [departmentEditingId, setDepartmentEditingId] = useState<number | null>(null);
-  const [location, setLocation] = useState({ code: "", name: "" });
+  const [location, setLocation] = useState({ code: "", name: "", parent_id: "" });
   const [locationEditingId, setLocationEditingId] = useState<number | null>(null);
-  const [category, setCategory] = useState({ code: "", name: "" });
+  const [category, setCategory] = useState({ code: "", name: "", parent_id: "" });
   const [categoryEditingId, setCategoryEditingId] = useState<number | null>(null);
   const [vendor, setVendor] = useState({ name: "", contact_email: "", contact_phone: "" });
   const [vendorEditingId, setVendorEditingId] = useState<number | null>(null);
@@ -60,10 +69,16 @@ export function LookupManagementPage() {
   const locationMutation = useMutation({
     mutationFn: () =>
       locationEditingId
-        ? updateLocation(locationEditingId, location)
-        : createLocation(location),
+        ? updateLocation(locationEditingId, {
+            ...location,
+            parent_id: location.parent_id ? Number(location.parent_id) : null,
+          })
+        : createLocation({
+            ...location,
+            parent_id: location.parent_id ? Number(location.parent_id) : null,
+          }),
     onSuccess: async () => {
-      setLocation({ code: "", name: "" });
+      setLocation({ code: "", name: "", parent_id: "" });
       setLocationEditingId(null);
       await invalidate();
     },
@@ -71,10 +86,16 @@ export function LookupManagementPage() {
   const categoryMutation = useMutation({
     mutationFn: () =>
       categoryEditingId
-        ? updateAssetCategory(categoryEditingId, category)
-        : createAssetCategory(category),
+        ? updateAssetCategory(categoryEditingId, {
+            ...category,
+            parent_id: category.parent_id ? Number(category.parent_id) : null,
+          })
+        : createAssetCategory({
+            ...category,
+            parent_id: category.parent_id ? Number(category.parent_id) : null,
+          }),
     onSuccess: async () => {
-      setCategory({ code: "", name: "" });
+      setCategory({ code: "", name: "", parent_id: "" });
       setCategoryEditingId(null);
       await invalidate();
     },
@@ -146,11 +167,11 @@ export function LookupManagementPage() {
     setDepartmentEditingId(null);
   };
   const resetLocationForm = () => {
-    setLocation({ code: "", name: "" });
+    setLocation({ code: "", name: "", parent_id: "" });
     setLocationEditingId(null);
   };
   const resetCategoryForm = () => {
-    setCategory({ code: "", name: "" });
+    setCategory({ code: "", name: "", parent_id: "" });
     setCategoryEditingId(null);
   };
   const resetVendorForm = () => {
@@ -181,8 +202,8 @@ export function LookupManagementPage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <LookupPanel title="Dipartimenti" items={departments}>
           <div className="grid gap-3 md:grid-cols-2">
-            <input value={department.code} onChange={(e) => setDepartment((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" className={inputClassName} />
-            <input value={department.name} onChange={(e) => setDepartment((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" className={inputClassName} />
+            <input aria-label="Codice dipartimento" value={department.code} onChange={(e) => setDepartment((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" className={inputClassName} />
+            <input aria-label="Nome dipartimento" value={department.name} onChange={(e) => setDepartment((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" className={inputClassName} />
           </div>
           <div className="flex flex-wrap gap-3">
             <ActionButton disabled={!department.code || !department.name || departmentMutation.isPending} onClick={() => departmentMutation.mutate()}>
@@ -201,9 +222,17 @@ export function LookupManagementPage() {
         </LookupPanel>
 
         <LookupPanel title="Sedi" items={locations}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input value={location.code} onChange={(e) => setLocation((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" className={inputClassName} />
-            <input value={location.name} onChange={(e) => setLocation((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" className={inputClassName} />
+          <div className="grid gap-3 md:grid-cols-3">
+            <input aria-label="Codice sede" value={location.code} onChange={(e) => setLocation((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" className={inputClassName} />
+            <input aria-label="Nome sede" value={location.name} onChange={(e) => setLocation((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" className={inputClassName} />
+            <select aria-label="Sede padre" value={location.parent_id} onChange={(e) => setLocation((v) => ({ ...v, parent_id: e.target.value }))} className={inputClassName}>
+              <option value="">Sede padre</option>
+              {locations.filter((item) => item.id !== locationEditingId).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-wrap gap-3">
             <ActionButton disabled={!location.code || !location.name || locationMutation.isPending} onClick={() => locationMutation.mutate()}>
@@ -215,16 +244,28 @@ export function LookupManagementPage() {
             items={locations}
             onEdit={(item) => {
               setLocationEditingId(item.id);
-              setLocation({ code: item.code ?? "", name: item.name });
+              setLocation({ code: item.code ?? "", name: item.name, parent_id: item.parent_id ? String(item.parent_id) : "" });
             }}
             onDelete={(item) => handleDelete(item.name, () => locationDeleteMutation.mutate(item.id))}
+            describeItem={(item) => {
+              const parentName = locations.find((parentItem) => parentItem.id === item.parent_id)?.name;
+              return parentName ? `Padre: ${parentName}` : "";
+            }}
           />
         </LookupPanel>
 
         <LookupPanel title="Categorie asset" items={categories}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input value={category.code} onChange={(e) => setCategory((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" className={inputClassName} />
-            <input value={category.name} onChange={(e) => setCategory((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" className={inputClassName} />
+          <div className="grid gap-3 md:grid-cols-3">
+            <input aria-label="Codice categoria" value={category.code} onChange={(e) => setCategory((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" className={inputClassName} />
+            <input aria-label="Nome categoria" value={category.name} onChange={(e) => setCategory((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" className={inputClassName} />
+            <select aria-label="Categoria padre" value={category.parent_id} onChange={(e) => setCategory((v) => ({ ...v, parent_id: e.target.value }))} className={inputClassName}>
+              <option value="">Categoria padre</option>
+              {categories.filter((item) => item.id !== categoryEditingId).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-wrap gap-3">
             <ActionButton disabled={!category.code || !category.name || categoryMutation.isPending} onClick={() => categoryMutation.mutate()}>
@@ -236,18 +277,22 @@ export function LookupManagementPage() {
             items={categories}
             onEdit={(item) => {
               setCategoryEditingId(item.id);
-              setCategory({ code: item.code ?? "", name: item.name });
+              setCategory({ code: item.code ?? "", name: item.name, parent_id: item.parent_id ? String(item.parent_id) : "" });
             }}
             onDelete={(item) => handleDelete(item.name, () => categoryDeleteMutation.mutate(item.id))}
+            describeItem={(item) => {
+              const parentName = categories.find((parentItem) => parentItem.id === item.parent_id)?.name;
+              return parentName ? `Padre: ${parentName}` : "";
+            }}
           />
         </LookupPanel>
 
         <LookupPanel title="Fornitori" items={vendors}>
           <div className="grid gap-3">
-            <input value={vendor.name} onChange={(e) => setVendor((v) => ({ ...v, name: e.target.value }))} placeholder="Nome fornitore" className={inputClassName} />
+            <input aria-label="Nome fornitore" value={vendor.name} onChange={(e) => setVendor((v) => ({ ...v, name: e.target.value }))} placeholder="Nome fornitore" className={inputClassName} />
             <div className="grid gap-3 md:grid-cols-2">
-              <input value={vendor.contact_email} onChange={(e) => setVendor((v) => ({ ...v, contact_email: e.target.value }))} placeholder="Email contatto" className={inputClassName} />
-              <input value={vendor.contact_phone} onChange={(e) => setVendor((v) => ({ ...v, contact_phone: e.target.value }))} placeholder="Telefono contatto" className={inputClassName} />
+              <input aria-label="Email contatto fornitore" type="email" inputMode="email" autoComplete="email" spellCheck={false} value={vendor.contact_email} onChange={(e) => setVendor((v) => ({ ...v, contact_email: e.target.value }))} placeholder="Email contatto" className={inputClassName} />
+              <input aria-label="Telefono contatto fornitore" type="tel" inputMode="tel" autoComplete="tel" value={vendor.contact_phone} onChange={(e) => setVendor((v) => ({ ...v, contact_phone: e.target.value }))} placeholder="Telefono contatto" className={inputClassName} />
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -273,7 +318,7 @@ export function LookupManagementPage() {
 
         <LookupPanel title="Modelli asset" items={models} className="xl:col-span-2">
           <div className="grid gap-3 xl:grid-cols-4">
-            <select value={model.category_id} onChange={(e) => setModel((v) => ({ ...v, category_id: e.target.value }))} className={inputClassName}>
+            <select aria-label="Categoria modello" value={model.category_id} onChange={(e) => setModel((v) => ({ ...v, category_id: e.target.value }))} className={inputClassName}>
               <option value="">Categoria</option>
               {categories.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -281,7 +326,7 @@ export function LookupManagementPage() {
                 </option>
               ))}
             </select>
-            <select value={model.vendor_id} onChange={(e) => setModel((v) => ({ ...v, vendor_id: e.target.value }))} className={inputClassName}>
+            <select aria-label="Fornitore modello" value={model.vendor_id} onChange={(e) => setModel((v) => ({ ...v, vendor_id: e.target.value }))} className={inputClassName}>
               <option value="">Fornitore</option>
               {vendors.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -289,8 +334,8 @@ export function LookupManagementPage() {
                 </option>
               ))}
             </select>
-            <input value={model.name} onChange={(e) => setModel((v) => ({ ...v, name: e.target.value }))} placeholder="Nome modello" className={inputClassName} />
-            <input value={model.manufacturer} onChange={(e) => setModel((v) => ({ ...v, manufacturer: e.target.value }))} placeholder="Produttore" className={inputClassName} />
+            <input aria-label="Nome modello" value={model.name} onChange={(e) => setModel((v) => ({ ...v, name: e.target.value }))} placeholder="Nome modello" className={inputClassName} />
+            <input aria-label="Produttore modello" value={model.manufacturer} onChange={(e) => setModel((v) => ({ ...v, manufacturer: e.target.value }))} placeholder="Produttore" className={inputClassName} />
           </div>
           <div className="flex flex-wrap gap-3">
             <ActionButton disabled={!model.category_id || !model.name || modelMutation.isPending} onClick={() => modelMutation.mutate()}>
@@ -323,8 +368,8 @@ export function LookupManagementPage() {
         </LookupPanel>
       </div>
 
-      {isLoading && <p className="text-sm text-slate-500">Caricamento tabelle di supporto...</p>}
-      {error && <p className="text-sm text-rose-600">{error.message}</p>}
+      {isLoading && <p className="text-sm text-slate-500">Caricamento tabelle di supporto…</p>}
+      {error && <p className="text-sm text-rose-600" aria-live="polite">{error.message}</p>}
       {(departmentMutation.error ||
         locationMutation.error ||
         categoryMutation.error ||
@@ -335,7 +380,7 @@ export function LookupManagementPage() {
         categoryDeleteMutation.error ||
         vendorDeleteMutation.error ||
         modelDeleteMutation.error) && (
-        <p className="text-sm text-rose-600">
+        <p className="text-sm text-rose-600" aria-live="polite">
           {String(
             departmentMutation.error?.message ||
               locationMutation.error?.message ||

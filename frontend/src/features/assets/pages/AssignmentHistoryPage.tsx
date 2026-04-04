@@ -26,7 +26,7 @@ export function AssignmentHistoryPage() {
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr className="text-left text-sm text-slate-500">
-              <th className="px-4 py-3 font-medium">Utente</th>
+              <th className="px-4 py-3 font-medium">Assegnatario</th>
               <th className="px-4 py-3 font-medium">Assegnato il</th>
               <th className="px-4 py-3 font-medium">Rientrato il</th>
               <th className="px-4 py-3 font-medium">Sede</th>
@@ -36,7 +36,7 @@ export function AssignmentHistoryPage() {
           <tbody className="divide-y divide-slate-200">
             {asset.assignments.map((assignment) => (
               <tr key={assignment.id} className="text-sm">
-                <td className="px-4 py-3 text-slate-900">{assignment.user.full_name}</td>
+                <td className="px-4 py-3 text-slate-900">{assignment.employee.full_name}</td>
                 <td className="px-4 py-3 text-slate-700">{new Date(assignment.assigned_at).toLocaleString()}</td>
                 <td className="px-4 py-3 text-slate-700">{assignment.returned_at ? new Date(assignment.returned_at).toLocaleString() : "Aperta"}</td>
                 <td className="px-4 py-3 text-slate-700">{assignment.location?.name ?? "-"}</td>

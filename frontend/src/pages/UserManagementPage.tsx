@@ -22,7 +22,16 @@ const initialForm = {
 export function UserManagementPage() {
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
-  const { departments } = useLookupsBundle();
+  const { departments } = useLookupsBundle({
+    departments: true,
+    locations: false,
+    vendors: false,
+    categories: false,
+    models: false,
+    statuses: false,
+    employees: false,
+    users: false,
+  });
   const { data: usersResponse, isLoading: isUsersLoading, error: usersError } = useQuery({
     queryKey: ["users"],
     queryFn: getUsers,

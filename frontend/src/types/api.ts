@@ -17,6 +17,7 @@ export type LookupReference = {
   id: number;
   name: string;
   code?: string | null;
+  parent_id?: number | null;
   contact_email?: string | null;
   contact_phone?: string | null;
   category_id?: number | null;
@@ -30,6 +31,13 @@ export type UserReference = {
   full_name: string;
 };
 
+export type EmployeeReference = {
+  id: number;
+  employee_code: string;
+  full_name: string;
+  email: string | null;
+};
+
 export type LookupListResponse = {
   items: LookupReference[];
 };
@@ -37,6 +45,7 @@ export type LookupListResponse = {
 export type LookupCreatePayload = {
   code: string;
   name: string;
+  parent_id?: number | null;
 };
 
 export type VendorCreatePayload = {
@@ -63,14 +72,20 @@ export type AssetListItem = {
   asset_tag: string;
   name: string;
   serial_number: string | null;
+  asset_type: string | null;
+  brand: string | null;
   status: LookupReference;
   category: LookupReference;
   location: LookupReference | null;
-  assigned_user: UserReference | null;
+  assigned_employee: EmployeeReference | null;
   purchase_date: string | null;
   warranty_expiry_date: string | null;
   expected_end_of_life_date: string | null;
   cost_center: string | null;
+  location_floor: string | null;
+  location_room: string | null;
+  location_rack: string | null;
+  location_slot: string | null;
 };
 
 export type AssetListResponse = {
@@ -83,7 +98,7 @@ export type AssetListResponse = {
 export type AssetAssignment = {
   id: number;
   asset_id: number;
-  user: UserReference;
+  employee: EmployeeReference;
   assigned_by_user: UserReference;
   department: LookupReference | null;
   location: LookupReference | null;
@@ -117,22 +132,29 @@ export type AssetDetail = {
   asset_tag: string;
   name: string;
   serial_number: string | null;
+  asset_type: string | null;
+  brand: string | null;
   description: string | null;
   purchase_date: string | null;
   warranty_expiry_date: string | null;
   expected_end_of_life_date: string | null;
   disposal_date: string | null;
   cost_center: string | null;
+  location_floor: string | null;
+  location_room: string | null;
+  location_rack: string | null;
+  location_slot: string | null;
   category: LookupReference;
   model: LookupReference | null;
   status: LookupReference;
   location: LookupReference | null;
   vendor: LookupReference | null;
   current_department: LookupReference | null;
-  assigned_user: UserReference | null;
+  assigned_employee: EmployeeReference | null;
   assignments: AssetAssignment[];
   events: AssetEvent[];
   documents: AssetDocument[];
+  photo_document: AssetDocument | null;
 };
 
 export type AssetPayload = {
@@ -141,6 +163,8 @@ export type AssetPayload = {
   category_id: number;
   status_id: number;
   serial_number?: string | null;
+  asset_type?: string | null;
+  brand?: string | null;
   model_id?: number | null;
   location_id?: number | null;
   vendor_id?: number | null;
@@ -151,6 +175,10 @@ export type AssetPayload = {
   expected_end_of_life_date?: string | null;
   disposal_date?: string | null;
   cost_center?: string | null;
+  location_floor?: string | null;
+  location_room?: string | null;
+  location_rack?: string | null;
+  location_slot?: string | null;
 };
 
 export type AssetStatusChangePayload = {
@@ -164,7 +192,7 @@ export type AssetLocationChangePayload = {
 };
 
 export type AssetAssignPayload = {
-  user_id: number;
+  employee_id: number;
   department_id?: number | null;
   location_id?: number | null;
   expected_return_at?: string | null;
@@ -204,6 +232,70 @@ export type MaintenanceTicketUpdatePayload = {
   description?: string | null;
 };
 
+export type SoftwareLicenseAssignment = {
+  id: number;
+  software_license_id: number;
+  user: UserReference | null;
+  asset: LookupReference | null;
+  assigned_by_user: UserReference;
+  assigned_at: string;
+  revoked_at: string | null;
+  notes: string | null;
+};
+
+export type SoftwareLicenseEvent = {
+  id: number;
+  event_type: string;
+  summary: string;
+  created_at: string;
+  performed_by_user: UserReference | null;
+  details: Record<string, unknown> | null;
+};
+
+export type SoftwareLicenseListItem = {
+  id: number;
+  product_name: string;
+  license_type: string;
+  purchased_quantity: number;
+  active_assignments: number;
+  available_quantity: number;
+  expiry_date: string | null;
+  vendor: LookupReference | null;
+};
+
+export type SoftwareLicenseDetail = SoftwareLicenseListItem & {
+  purchase_date: string | null;
+  renewal_alert_days: number;
+  notes: string | null;
+  assignments: SoftwareLicenseAssignment[];
+  events: SoftwareLicenseEvent[];
+};
+
+export type SoftwareLicenseListResponse = {
+  items: SoftwareLicenseListItem[];
+};
+
+export type SoftwareLicensePayload = {
+  product_name: string;
+  vendor_id?: number | null;
+  license_type: string;
+  purchased_quantity: number;
+  purchase_date?: string | null;
+  expiry_date?: string | null;
+  renewal_alert_days?: number;
+  notes?: string | null;
+};
+
+export type SoftwareLicenseAssignPayload = {
+  user_id?: number | null;
+  asset_id?: number | null;
+  notes?: string | null;
+};
+
+export type SoftwareLicenseRevokePayload = {
+  notes?: string | null;
+};
+
 export type UserListItem = {
   id: number;
   username: string;
@@ -216,6 +308,29 @@ export type UserListItem = {
 
 export type UserListResponse = {
   items: UserListItem[];
+};
+
+export type EmployeeListItem = {
+  id: number;
+  employee_code: string;
+  full_name: string;
+  email: string | null;
+  department_id: number | null;
+  is_active: boolean;
+  notes: string | null;
+};
+
+export type EmployeeListResponse = {
+  items: EmployeeListItem[];
+};
+
+export type EmployeePayload = {
+  employee_code: string;
+  full_name: string;
+  email?: string | null;
+  department_id?: number | null;
+  is_active: boolean;
+  notes?: string | null;
 };
 
 export type UserPayload = {
@@ -233,6 +348,7 @@ export type DashboardSummary = {
   assigned_assets: number;
   assets_in_maintenance: number;
   open_maintenance_tickets: number;
+  software_licenses_expiring_soon: number;
   warranties_expiring_soon: number;
   end_of_life_soon: number;
   assignments_due_soon: number;
@@ -273,10 +389,17 @@ export type DashboardSummary = {
     asset_id: number;
     asset_tag: string;
     asset_name: string;
-    assigned_user_name: string;
+    assigned_employee_name: string;
     expected_return_at: string;
     days_remaining: number;
     alert_type: string;
+  }>;
+  software_license_alerts: Array<{
+    license_id: number;
+    product_name: string;
+    expiry_date: string;
+    days_remaining: number;
+    available_quantity: number;
   }>;
   notifications: Array<{
     title: string;
@@ -292,7 +415,7 @@ export type DashboardSummary = {
     status_code: string;
     status_name: string;
     location_name: string | null;
-    assigned_user_name: string | null;
+    assigned_employee_name: string | null;
   }>;
   retired_assets_pending_disposal: Array<{
     asset_id: number;
@@ -301,7 +424,7 @@ export type DashboardSummary = {
     status_code: string;
     status_name: string;
     location_name: string | null;
-    assigned_user_name: string | null;
+    assigned_employee_name: string | null;
   }>;
   maintenance_queue: Array<{
     ticket_id: number;

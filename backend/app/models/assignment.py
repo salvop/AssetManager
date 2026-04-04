@@ -11,7 +11,7 @@ class AssetAssignment(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"))
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
     assigned_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
     location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True)
