@@ -1,4 +1,4 @@
-import { getAccessToken } from "../lib/session";
+import { getAccessToken, notifySessionExpired } from "../lib/session";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
@@ -19,6 +19,11 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
     ...init,
     headers,
   });
+
+  if (response.status === 401 && !path.startsWith("/auth/login")) {
+    notifySessionExpired();
+    throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({ detail: "Richiesta non riuscita" }));
@@ -45,6 +50,11 @@ export async function apiDownload(path: string): Promise<{ blob: Blob; filename:
     method: "GET",
     headers,
   });
+
+  if (response.status === 401 && !path.startsWith("/auth/login")) {
+    notifySessionExpired();
+    throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({ detail: "Download non riuscito" }));

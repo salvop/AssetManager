@@ -201,6 +201,21 @@ Stati manutenzione gestiti:
 - `IN_PROGRESS`
 - `CLOSED`
 
+### 7.b Notifiche email
+
+Funzionalita disponibili:
+
+- notifiche email SMTP opzionali
+- invio best-effort, senza bloccare i workflow se il server mail non risponde
+- supporto destinatari di default configurabili
+
+Eventi attualmente notificati:
+
+- assegnazione asset
+- rientro asset
+- apertura ticket manutenzione
+- cambio stato ticket manutenzione
+
 ### 8. Lookup management
 
 Lookup gestiti:
@@ -525,6 +540,21 @@ Copy-Item .env.example .env
 ```
 
 Imposta una `SECRET_KEY` lunga nel file `.env`.
+
+Se vuoi attivare le email, configura anche:
+
+```env
+NOTIFICATION_EMAIL_ENABLED=true
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=asset-manager@example.com
+SMTP_PASSWORD=your-password
+SMTP_FROM_EMAIL=asset-manager@example.com
+SMTP_FROM_NAME=Asset Manager
+SMTP_USE_STARTTLS=true
+SMTP_USE_SSL=false
+NOTIFICATION_DEFAULT_RECIPIENTS=it-ops@example.com,asset-team@example.com
+```
 
 ### 2. Avvio database con Docker
 

@@ -111,3 +111,47 @@ export async function downloadDocument(documentId: number) {
   anchor.remove();
   window.URL.revokeObjectURL(url);
 }
+
+export async function exportAssetsCsv(params: AssetListParams = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.search) searchParams.set("search", params.search);
+  if (params.statusId) searchParams.set("status_id", String(params.statusId));
+  if (params.categoryId) searchParams.set("category_id", String(params.categoryId));
+  if (params.modelId) searchParams.set("model_id", String(params.modelId));
+  if (params.locationId) searchParams.set("location_id", String(params.locationId));
+  if (params.departmentId) searchParams.set("department_id", String(params.departmentId));
+  if (params.assignedUserId) searchParams.set("assigned_user_id", String(params.assignedUserId));
+  if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
+  const query = searchParams.toString();
+  const { blob, filename } = await apiDownload(`/assets/export/csv${query ? `?${query}` : ""}`);
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename ?? "asset-inventory-export.csv";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportAssetsXlsx(params: AssetListParams = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.search) searchParams.set("search", params.search);
+  if (params.statusId) searchParams.set("status_id", String(params.statusId));
+  if (params.categoryId) searchParams.set("category_id", String(params.categoryId));
+  if (params.modelId) searchParams.set("model_id", String(params.modelId));
+  if (params.locationId) searchParams.set("location_id", String(params.locationId));
+  if (params.departmentId) searchParams.set("department_id", String(params.departmentId));
+  if (params.assignedUserId) searchParams.set("assigned_user_id", String(params.assignedUserId));
+  if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
+  const query = searchParams.toString();
+  const { blob, filename } = await apiDownload(`/assets/export/xlsx${query ? `?${query}` : ""}`);
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename ?? "asset-inventory-export.xlsx";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}

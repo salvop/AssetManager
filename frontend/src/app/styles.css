@@ -1,8 +1,73 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-50: #f3f7f4;
+  --brand-100: #d8e8dc;
+  --brand-500: #2f6b4f;
+  --brand-600: #24583f;
+  --brand-700: #1e4733;
+  --ink-950: #142019;
+  --surface-0: #f4f4f1;
+  --surface-1: #ffffff;
+  --surface-2: #f7f7f4;
+  --line-soft: rgba(20, 32, 25, 0.08);
+}
+
+html {
+  background: var(--surface-0);
+}
+
 body {
-  font-family: "Segoe UI", sans-serif;
-  color: #0f172a;
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  color: var(--ink-950);
+  background: var(--surface-0);
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(47, 107, 79, 0.18);
+  color: var(--ink-950);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 88, 63, 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(36, 88, 63, 0.22);
+  border-radius: 999px;
+}
+
+.app-panel {
+  border-radius: 28px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-1);
+  padding: 1.5rem;
+  box-shadow: 0 10px 26px rgba(20, 32, 25, 0.04);
+}
+
+.app-panel-strong {
+  border-radius: 32px;
+  border: 1px solid rgba(20, 32, 25, 0.08);
+  background: var(--surface-1);
+  padding: 2rem;
+  box-shadow: 0 18px 42px rgba(20, 32, 25, 0.05);
+}
+
+.soft-grid {
+  display: none;
 }

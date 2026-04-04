@@ -25,6 +25,9 @@ class AssetListItemResponse(BaseModel):
     location: AssetReferenceResponse | None
     assigned_user: UserReferenceResponse | None
     purchase_date: date | None
+    warranty_expiry_date: date | None
+    expected_end_of_life_date: date | None
+    cost_center: str | None
 
 
 class AssetListResponse(BaseModel):
@@ -46,6 +49,10 @@ class AssetCreateRequest(BaseModel):
     current_department_id: int | None = None
     description: str | None = None
     purchase_date: date | None = None
+    warranty_expiry_date: date | None = None
+    expected_end_of_life_date: date | None = None
+    disposal_date: date | None = None
+    cost_center: str | None = None
 
 
 class AssetUpdateRequest(BaseModel):
@@ -59,6 +66,10 @@ class AssetUpdateRequest(BaseModel):
     current_department_id: int | None = None
     description: str | None = None
     purchase_date: date | None = None
+    warranty_expiry_date: date | None = None
+    expected_end_of_life_date: date | None = None
+    disposal_date: date | None = None
+    cost_center: str | None = None
 
 
 class AssetStatusChangeRequest(BaseModel):
@@ -122,6 +133,10 @@ class AssetDetailResponse(BaseModel):
     serial_number: str | None
     description: str | None
     purchase_date: date | None
+    warranty_expiry_date: date | None
+    expected_end_of_life_date: date | None
+    disposal_date: date | None
+    cost_center: str | None
     category: AssetReferenceResponse
     model: AssetReferenceResponse | None
     status: AssetReferenceResponse

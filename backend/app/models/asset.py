@@ -23,6 +23,10 @@ class Asset(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(150))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     purchase_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    warranty_expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expected_end_of_life_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    disposal_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cost_center: Mapped[str | None] = mapped_column(String(100), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False, server_default=func.now(), onupdate=func.now())
 
 

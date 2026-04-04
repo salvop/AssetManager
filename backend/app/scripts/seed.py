@@ -192,6 +192,10 @@ def seed_assets_domain_data(db: Session) -> None:
             current_department_id=1,
             description="Portatile principale assegnato al team IT.",
             purchase_date=date(2025, 11, 18),
+            warranty_expiry_date=date(2028, 11, 18),
+            expected_end_of_life_date=date(2029, 11, 18),
+            disposal_date=None,
+            cost_center="CC-IT-001",
         ),
         Asset(
             id=2,
@@ -207,6 +211,10 @@ def seed_assets_domain_data(db: Session) -> None:
             current_department_id=1,
             description="Monitor disponibile in magazzino IT.",
             purchase_date=date(2025, 12, 4),
+            warranty_expiry_date=date(2028, 12, 4),
+            expected_end_of_life_date=date(2030, 12, 4),
+            disposal_date=None,
+            cost_center="CC-IT-002",
         ),
         Asset(
             id=3,
@@ -222,6 +230,10 @@ def seed_assets_domain_data(db: Session) -> None:
             current_department_id=2,
             description="Smartphone aziendale in verifica per batteria difettosa.",
             purchase_date=date(2025, 10, 2),
+            warranty_expiry_date=date(2027, 10, 2),
+            expected_end_of_life_date=date(2028, 10, 2),
+            disposal_date=None,
+            cost_center="CC-SALES-001",
         ),
         Asset(
             id=4,
@@ -237,6 +249,10 @@ def seed_assets_domain_data(db: Session) -> None:
             current_department_id=2,
             description="Desktop ritirato dal servizio e sostituito.",
             purchase_date=date(2023, 6, 12),
+            warranty_expiry_date=date(2026, 6, 12),
+            expected_end_of_life_date=date(2027, 6, 12),
+            disposal_date=None,
+            cost_center="CC-HR-002",
         ),
         Asset(
             id=5,
@@ -252,6 +268,10 @@ def seed_assets_domain_data(db: Session) -> None:
             current_department_id=1,
             description="Server on-premise predisposto per cluster interno.",
             purchase_date=date(2025, 7, 20),
+            warranty_expiry_date=date(2030, 7, 20),
+            expected_end_of_life_date=date(2032, 7, 20),
+            disposal_date=None,
+            cost_center="CC-INFRA-010",
         ),
         Asset(
             id=6,
@@ -267,6 +287,10 @@ def seed_assets_domain_data(db: Session) -> None:
             current_department_id=3,
             description="Asset dismesso e in attesa di smaltimento definitivo.",
             purchase_date=date(2023, 1, 15),
+            warranty_expiry_date=date(2026, 1, 15),
+            expected_end_of_life_date=date(2027, 1, 15),
+            disposal_date=date(2026, 3, 15),
+            cost_center="CC-FIN-004",
         ),
     ]
     db.add_all(assets)

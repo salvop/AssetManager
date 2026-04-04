@@ -68,6 +68,9 @@ export type AssetListItem = {
   location: LookupReference | null;
   assigned_user: UserReference | null;
   purchase_date: string | null;
+  warranty_expiry_date: string | null;
+  expected_end_of_life_date: string | null;
+  cost_center: string | null;
 };
 
 export type AssetListResponse = {
@@ -116,6 +119,10 @@ export type AssetDetail = {
   serial_number: string | null;
   description: string | null;
   purchase_date: string | null;
+  warranty_expiry_date: string | null;
+  expected_end_of_life_date: string | null;
+  disposal_date: string | null;
+  cost_center: string | null;
   category: LookupReference;
   model: LookupReference | null;
   status: LookupReference;
@@ -140,6 +147,10 @@ export type AssetPayload = {
   current_department_id?: number | null;
   description?: string | null;
   purchase_date?: string | null;
+  warranty_expiry_date?: string | null;
+  expected_end_of_life_date?: string | null;
+  disposal_date?: string | null;
+  cost_center?: string | null;
 };
 
 export type AssetStatusChangePayload = {
@@ -222,6 +233,11 @@ export type DashboardSummary = {
   assigned_assets: number;
   assets_in_maintenance: number;
   open_maintenance_tickets: number;
+  warranties_expiring_soon: number;
+  end_of_life_soon: number;
+  assignments_due_soon: number;
+  overdue_assignments: number;
+  total_notifications: number;
   assets_by_status: Array<{
     status_id: number;
     status_code: string;
@@ -234,6 +250,8 @@ export type DashboardSummary = {
     name: string;
     status_code: string;
     status_name: string;
+    warranty_expiry_date: string | null;
+    expected_end_of_life_date: string | null;
   }>;
   recent_open_tickets: Array<{
     id: number;
@@ -242,5 +260,57 @@ export type DashboardSummary = {
     asset_id: number;
     asset_name: string;
     asset_tag: string;
+  }>;
+  lifecycle_alerts: Array<{
+    asset_id: number;
+    asset_tag: string;
+    asset_name: string;
+    due_date: string;
+    alert_type: string;
+    days_remaining: number;
+  }>;
+  assignment_alerts: Array<{
+    asset_id: number;
+    asset_tag: string;
+    asset_name: string;
+    assigned_user_name: string;
+    expected_return_at: string;
+    days_remaining: number;
+    alert_type: string;
+  }>;
+  notifications: Array<{
+    title: string;
+    body: string;
+    severity: string;
+    link: string;
+    category: string;
+  }>;
+  assets_ready_for_assignment: Array<{
+    asset_id: number;
+    asset_tag: string;
+    asset_name: string;
+    status_code: string;
+    status_name: string;
+    location_name: string | null;
+    assigned_user_name: string | null;
+  }>;
+  retired_assets_pending_disposal: Array<{
+    asset_id: number;
+    asset_tag: string;
+    asset_name: string;
+    status_code: string;
+    status_name: string;
+    location_name: string | null;
+    assigned_user_name: string | null;
+  }>;
+  maintenance_queue: Array<{
+    ticket_id: number;
+    title: string;
+    status: string;
+    asset_id: number;
+    asset_tag: string;
+    asset_name: string;
+    opened_at: string;
+    opened_days: number;
   }>;
 };

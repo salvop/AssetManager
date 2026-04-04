@@ -24,41 +24,50 @@ class AssetRepository:
         sort_by: str,
         sort_dir: str,
     ) -> tuple[list[Asset], int]:
-        query: Select[tuple[Asset]] = select(Asset)
-
-        if search:
-            pattern = f"%{search}%"
-            query = query.where(or_(Asset.asset_tag.ilike(pattern), Asset.name.ilike(pattern)))
-        if status_id:
-            query = query.where(Asset.status_id == status_id)
-        if category_id:
-            query = query.where(Asset.category_id == category_id)
-        if model_id:
-            query = query.where(Asset.model_id == model_id)
-        if location_id:
-            query = query.where(Asset.location_id == location_id)
-        if department_id:
-            query = query.where(Asset.current_department_id == department_id)
-        if assigned_user_id:
-            query = query.where(Asset.assigned_user_id == assigned_user_id)
-        if vendor_id:
-            query = query.where(Asset.vendor_id == vendor_id)
-
-        sort_map = {
-            "asset_tag": Asset.asset_tag,
-            "name": Asset.name,
-            "created_at": Asset.created_at,
-            "updated_at": Asset.updated_at,
-        }
-        sort_column = sort_map.get(sort_by, Asset.asset_tag)
-        if sort_dir.lower() == "desc":
-            query = query.order_by(sort_column.desc())
-        else:
-            query = query.order_by(sort_column.asc())
+        query = self._build_filtered_query(
+            search=search,
+            status_id=status_id,
+            category_id=category_id,
+            model_id=model_id,
+            location_id=location_id,
+            department_id=department_id,
+            assigned_user_id=assigned_user_id,
+            vendor_id=vendor_id,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+        )
 
         total = self.db.scalar(select(func.count()).select_from(query.subquery())) or 0
         items = self.db.scalars(query.offset((page - 1) * page_size).limit(page_size)).all()
         return items, total
+
+    def list_assets_for_export(
+        self,
+        *,
+        search: str | None,
+        status_id: int | None,
+        category_id: int | None,
+        model_id: int | None,
+        location_id: int | None,
+        department_id: int | None,
+        assigned_user_id: int | None,
+        vendor_id: int | None,
+        sort_by: str,
+        sort_dir: str,
+    ) -> list[Asset]:
+        query = self._build_filtered_query(
+            search=search,
+            status_id=status_id,
+            category_id=category_id,
+            model_id=model_id,
+            location_id=location_id,
+            department_id=department_id,
+            assigned_user_id=assigned_user_id,
+            vendor_id=vendor_id,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+        )
+        return self.db.scalars(query).all()
 
     def add(self, asset: Asset) -> Asset:
         self.db.add(asset)
@@ -99,3 +108,50 @@ class AssetRepository:
 
     def delete_document(self, document: AssetDocument) -> None:
         self.db.delete(document)
+
+    def _build_filtered_query(
+        self,
+        *,
+        search: str | None,
+        status_id: int | None,
+        category_id: int | None,
+        model_id: int | None,
+        location_id: int | None,
+        department_id: int | None,
+        assigned_user_id: int | None,
+        vendor_id: int | None,
+        sort_by: str,
+        sort_dir: str,
+    ) -> Select[tuple[Asset]]:
+        query: Select[tuple[Asset]] = select(Asset)
+
+        if search:
+            pattern = f"%{search}%"
+            query = query.where(or_(Asset.asset_tag.ilike(pattern), Asset.name.ilike(pattern)))
+        if status_id:
+            query = query.where(Asset.status_id == status_id)
+        if category_id:
+            query = query.where(Asset.category_id == category_id)
+        if model_id:
+            query = query.where(Asset.model_id == model_id)
+        if location_id:
+            query = query.where(Asset.location_id == location_id)
+        if department_id:
+            query = query.where(Asset.current_department_id == department_id)
+        if assigned_user_id:
+            query = query.where(Asset.assigned_user_id == assigned_user_id)
+        if vendor_id:
+            query = query.where(Asset.vendor_id == vendor_id)
+
+        sort_map = {
+            "asset_tag": Asset.asset_tag,
+            "name": Asset.name,
+            "created_at": Asset.created_at,
+            "updated_at": Asset.updated_at,
+        }
+        sort_column = sort_map.get(sort_by, Asset.asset_tag)
+        if sort_dir.lower() == "desc":
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+        return query

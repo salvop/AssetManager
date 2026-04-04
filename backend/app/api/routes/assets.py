@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -21,6 +22,74 @@ from app.services.assignment import AssignmentService
 from app.services.documents import DocumentService
 
 router = APIRouter()
+
+
+@router.get("/export/csv")
+def export_assets_csv(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("ADMIN", "ASSET_MANAGER", "OPERATOR", "VIEWER")),
+    search: str | None = Query(default=None),
+    status_id: int | None = Query(default=None),
+    category_id: int | None = Query(default=None),
+    model_id: int | None = Query(default=None),
+    location_id: int | None = Query(default=None),
+    department_id: int | None = Query(default=None),
+    assigned_user_id: int | None = Query(default=None),
+    vendor_id: int | None = Query(default=None),
+    sort_by: str = Query(default="asset_tag"),
+    sort_dir: str = Query(default="asc"),
+) -> Response:
+    filename, content = AssetService(db).export_assets_csv(
+        search=search,
+        status_id=status_id,
+        category_id=category_id,
+        model_id=model_id,
+        location_id=location_id,
+        department_id=department_id,
+        assigned_user_id=assigned_user_id,
+        vendor_id=vendor_id,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export/xlsx")
+def export_assets_xlsx(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("ADMIN", "ASSET_MANAGER", "OPERATOR", "VIEWER")),
+    search: str | None = Query(default=None),
+    status_id: int | None = Query(default=None),
+    category_id: int | None = Query(default=None),
+    model_id: int | None = Query(default=None),
+    location_id: int | None = Query(default=None),
+    department_id: int | None = Query(default=None),
+    assigned_user_id: int | None = Query(default=None),
+    vendor_id: int | None = Query(default=None),
+    sort_by: str = Query(default="asset_tag"),
+    sort_dir: str = Query(default="asc"),
+) -> Response:
+    filename, content = AssetService(db).export_assets_xlsx(
+        search=search,
+        status_id=status_id,
+        category_id=category_id,
+        model_id=model_id,
+        location_id=location_id,
+        department_id=department_id,
+        assigned_user_id=assigned_user_id,
+        vendor_id=vendor_id,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("", response_model=AssetListResponse)

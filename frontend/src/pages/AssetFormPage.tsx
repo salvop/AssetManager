@@ -22,6 +22,10 @@ const assetFormSchema = z.object({
   current_department_id: z.coerce.number().nullable().optional(),
   description: z.string().optional(),
   purchase_date: z.string().optional(),
+  warranty_expiry_date: z.string().optional(),
+  expected_end_of_life_date: z.string().optional(),
+  disposal_date: z.string().optional(),
+  cost_center: z.string().optional(),
 });
 
 type AssetFormValues = z.infer<typeof assetFormSchema>;
@@ -51,6 +55,10 @@ export function AssetFormPage() {
       current_department_id: null,
       description: "",
       purchase_date: "",
+      warranty_expiry_date: "",
+      expected_end_of_life_date: "",
+      disposal_date: "",
+      cost_center: "",
     },
   });
 
@@ -68,6 +76,10 @@ export function AssetFormPage() {
       current_department_id: asset.current_department?.id ?? null,
       description: asset.description ?? "",
       purchase_date: asset.purchase_date ?? "",
+      warranty_expiry_date: asset.warranty_expiry_date ?? "",
+      expected_end_of_life_date: asset.expected_end_of_life_date ?? "",
+      disposal_date: asset.disposal_date ?? "",
+      cost_center: asset.cost_center ?? "",
     });
   }, [asset, form]);
 
@@ -82,6 +94,10 @@ export function AssetFormPage() {
         serial_number: values.serial_number || null,
         description: values.description || null,
         purchase_date: values.purchase_date || null,
+        warranty_expiry_date: values.warranty_expiry_date || null,
+        expected_end_of_life_date: values.expected_end_of_life_date || null,
+        disposal_date: values.disposal_date || null,
+        cost_center: values.cost_center || null,
       };
       if (isEditMode) {
         const { asset_tag, ...updatePayload } = payload;
@@ -191,6 +207,18 @@ export function AssetFormPage() {
             </Field>
             <Field label="Data acquisto">
               <input type="date" {...form.register("purchase_date")} className={inputClassName} />
+            </Field>
+            <Field label="Scadenza garanzia">
+              <input type="date" {...form.register("warranty_expiry_date")} className={inputClassName} />
+            </Field>
+            <Field label="Fine vita prevista">
+              <input type="date" {...form.register("expected_end_of_life_date")} className={inputClassName} />
+            </Field>
+            <Field label="Data dismissione">
+              <input type="date" {...form.register("disposal_date")} className={inputClassName} />
+            </Field>
+            <Field label="Cost center">
+              <input {...form.register("cost_center")} className={inputClassName} />
             </Field>
           </div>
           <Field label="Descrizione" className="mt-4">

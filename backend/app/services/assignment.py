@@ -9,6 +9,7 @@ from app.repositories.assignment import AssignmentRepository
 from app.repositories.lookup import LookupRepository
 from app.repositories.user import UserRepository
 from app.schemas.asset import AssetAssignRequest, AssetAssignmentResponse, AssetReturnRequest
+from app.services.email_notifications import EmailNotificationService
 from app.services.events import AssetEventService
 from app.services.helpers import assignment_response, require_resource
 
@@ -21,6 +22,7 @@ class AssignmentService:
         self.lookup_repository = LookupRepository(db)
         self.user_repository = UserRepository(db)
         self.event_service = AssetEventService(db)
+        self.email_notification_service = EmailNotificationService()
 
     def assign_asset(
         self,
@@ -31,6 +33,7 @@ class AssignmentService:
     ) -> AssetAssignmentResponse:
         asset = require_resource(self.asset_repository.get_by_id(asset_id), "Asset not found")
         target_user = require_resource(self.user_repository.get_by_id(payload.user_id), "User not found")
+        current_user = require_resource(self.user_repository.get_by_id(current_user_id), "Current user not found")
         asset_status = require_resource(self.lookup_repository.get_status(asset.status_id), "Asset status not found")
         if asset_status.code in {"RETIRED", "DISPOSED"}:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Asset cannot be assigned in current status")
@@ -71,6 +74,11 @@ class AssignmentService:
             details={"assigned_user_id": target_user.id, "notes": payload.notes},
         )
         self.db.commit()
+        self.email_notification_service.notify_asset_assigned(
+            asset=asset,
+            target_user=target_user,
+            assigned_by_user=current_user,
+        )
         return self._build_assignment_response(assignment)
 
     def return_asset(
@@ -84,6 +92,8 @@ class AssignmentService:
         assignment = self.assignment_repository.get_open_for_asset(asset_id)
         if assignment is None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Asset does not have an open assignment")
+        previous_user = self.user_repository.get_by_id(assignment.user_id)
+        current_user = require_resource(self.user_repository.get_by_id(current_user_id), "Current user not found")
 
         assignment.returned_at = datetime.now(UTC).replace(tzinfo=None)
         assignment.notes = payload.notes or assignment.notes
@@ -100,6 +110,11 @@ class AssignmentService:
             details={"notes": payload.notes},
         )
         self.db.commit()
+        self.email_notification_service.notify_asset_returned(
+            asset=asset,
+            previous_user=previous_user,
+            returned_by_user=current_user,
+        )
         return self._build_assignment_response(assignment)
 
     def list_assignments(self, asset_id: int) -> list[AssetAssignmentResponse]:

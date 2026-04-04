@@ -3,13 +3,23 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
-import { assignAsset, changeAssetLocation, changeAssetStatus, deleteDocument, downloadDocument, returnAsset, uploadAssetDocument } from "../api/assets";
+import {
+  assignAsset,
+  changeAssetLocation,
+  changeAssetStatus,
+  deleteDocument,
+  downloadDocument,
+  returnAsset,
+  uploadAssetDocument,
+} from "../api/assets";
 import { createMaintenanceTicket } from "../api/maintenance";
 import { useAsset } from "../hooks/useAssets";
 import { useAssetMaintenance } from "../hooks/useAssetMaintenance";
 import { useLookupsBundle } from "../hooks/useLookups";
+import type { AssetEvent } from "../types/api";
 
-const inputClassName = "w-full rounded-md border border-slate-300 px-3 py-2";
+const inputClassName =
+  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100";
 
 export function AssetDetailPage() {
   const params = useParams();
@@ -67,6 +77,7 @@ export function AssetDetailPage() {
     mutationFn: (documentId: number) => deleteDocument(documentId),
     onSuccess: invalidate,
   });
+
   const downloadDocumentMutation = useMutation({
     mutationFn: (documentId: number) => downloadDocument(documentId),
   });
@@ -90,23 +101,77 @@ export function AssetDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Dettaglio asset</p>
-          <h2 className="mt-2 text-3xl font-semibold">{asset.name}</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            {asset.asset_tag} · {asset.status.name}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Link to={`/assets/${asset.id}/edit`} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium">
-            Modifica asset
-          </Link>
-          <Link to={`/assets/${asset.id}/assignments`} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white">
-            Storico assegnazioni
-          </Link>
-        </div>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">Dettaglio asset</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{asset.name}</h2>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+              <span>{asset.asset_tag}</span>
+              <span className="text-slate-300">•</span>
+              <span>{asset.status.name}</span>
+              {asset.location?.name && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span>{asset.location.name}</span>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to={`/assets/${asset.id}/edit`}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Modifica asset
+            </Link>
+            <Link
+              to={`/assets/${asset.id}/assignments`}
+              className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
+            >
+              Storico assegnazioni
+            </Link>
+          </div>
       </div>
+      <div className="grid gap-3 md:grid-cols-4">
+          <HeroStat label="Stato" value={asset.status.name} />
+          <HeroStat label="Assegnato a" value={asset.assigned_user?.full_name ?? "Non assegnato"} />
+          <HeroStat label="Cost center" value={asset.cost_center ?? "-"} />
+          <HeroStat label="Garanzia" value={asset.warranty_expiry_date ?? "-"} />
+      </div>
+
+      <section className="app-panel">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Attivita</p>
+          <h3 className="mt-2 text-lg font-semibold text-slate-900">Cosa puoi fare su questo asset</h3>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <ActionShortcut
+            to="#assignment-workflow"
+            title="Assegna asset"
+            description="Consegna il bene a un utente o reparto."
+          />
+          <ActionShortcut
+            to="#assignment-workflow"
+            title="Registra rientro"
+            description="Chiudi l'assegnazione attiva e rendilo disponibile."
+          />
+          <ActionShortcut
+            to="#maintenance-workflow"
+            title="Apri ticket"
+            description="Avvia una lavorazione di manutenzione."
+          />
+          <ActionShortcut
+            to="#operational-workflow"
+            title="Cambia stato"
+            description="Aggiorna stato e collocazione operativa."
+          />
+          <ActionShortcut
+            to={`/assets/${asset.id}/edit`}
+            title="Aggiorna anagrafica"
+            description="Modifica dati, lifecycle e dismissione."
+          />
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <section className="space-y-6">
@@ -118,33 +183,29 @@ export function AssetDetailPage() {
                 ["Sede", asset.location?.name ?? "-"],
                 ["Dipartimento", asset.current_department?.name ?? "-"],
                 ["Fornitore", asset.vendor?.name ?? "-"],
+                ["Cost center", asset.cost_center ?? "-"],
                 ["Assegnato a", asset.assigned_user?.full_name ?? "-"],
                 ["Numero seriale", asset.serial_number ?? "-"],
                 ["Data acquisto", asset.purchase_date ?? "-"],
+                ["Scadenza garanzia", asset.warranty_expiry_date ?? "-"],
+                ["Fine vita prevista", asset.expected_end_of_life_date ?? "-"],
+                ["Data dismissione", asset.disposal_date ?? "-"],
               ]}
             />
-            {asset.description && <p className="mt-4 text-sm text-slate-600">{asset.description}</p>}
+            {asset.description && <p className="mt-4 text-sm leading-6 text-slate-600">{asset.description}</p>}
           </Panel>
 
           <Panel title="Storico eventi">
             <div className="space-y-3">
               {asset.events.length === 0 && <p className="text-sm text-slate-500">Nessun evento registrato.</p>}
               {asset.events.map((event) => (
-                <div key={event.id} className="rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium text-slate-900">{event.summary}</p>
-                    <span className="text-xs uppercase tracking-[0.15em] text-slate-500">{event.event_type}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {event.performed_by_user?.full_name ?? "Sistema"} · {new Date(event.created_at).toLocaleString()}
-                  </p>
-                </div>
+                <EventTimelineItem key={event.id} event={event} />
               ))}
             </div>
           </Panel>
 
           <Panel title="Documenti">
-            <label className="mb-4 block rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-600">
+            <label className="mb-4 block rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-sm text-slate-600">
               Carica un PDF, un'immagine o un file di testo
               <input
                 type="file"
@@ -158,7 +219,10 @@ export function AssetDetailPage() {
             <div className="space-y-2">
               {asset.documents.length === 0 && <p className="text-sm text-slate-500">Nessun documento caricato.</p>}
               {asset.documents.map((document) => (
-                <div key={document.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3 text-sm">
+                <div
+                  key={document.id}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/85 p-3 text-sm"
+                >
                   <div>
                     <p className="font-medium text-slate-900">{document.file_name}</p>
                     <p className="text-slate-500">
@@ -185,12 +249,16 @@ export function AssetDetailPage() {
             </div>
             {(uploadMutation.error || deleteDocumentMutation.error || downloadDocumentMutation.error) && (
               <p className="mt-3 text-sm text-rose-600">
-                {String(uploadMutation.error?.message || deleteDocumentMutation.error?.message || downloadDocumentMutation.error?.message)}
+                {String(
+                  uploadMutation.error?.message ||
+                    deleteDocumentMutation.error?.message ||
+                    downloadDocumentMutation.error?.message,
+                )}
               </p>
             )}
           </Panel>
 
-          <Panel title="Ticket di manutenzione">
+          <Panel title="Ticket di manutenzione" id="maintenance-workflow">
             <div className="space-y-3">
               <input
                 value={ticketTitle}
@@ -207,7 +275,7 @@ export function AssetDetailPage() {
               <button
                 disabled={!ticketTitle || maintenanceMutation.isPending}
                 onClick={() => maintenanceMutation.mutate()}
-                className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
               >
                 {maintenanceMutation.isPending ? "Apertura..." : "Apri ticket di manutenzione"}
               </button>
@@ -221,7 +289,7 @@ export function AssetDetailPage() {
                 <Link
                   key={ticket.id}
                   to={`/maintenance-tickets/${ticket.id}`}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 p-3 text-sm hover:bg-slate-50"
+                  className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/85 p-3 text-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white"
                 >
                   <div>
                     <p className="font-medium text-slate-900">{ticket.title}</p>
@@ -235,7 +303,7 @@ export function AssetDetailPage() {
         </section>
 
         <section className="space-y-6">
-          <Panel title="Assegna asset">
+          <Panel title="Assegna asset" id="assignment-workflow">
             <div className="space-y-3">
               <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className={inputClassName}>
                 <option value="">Seleziona utente</option>
@@ -264,14 +332,14 @@ export function AssetDetailPage() {
               <button
                 disabled={!selectedUserId || assignMutation.isPending || areLookupsLoading}
                 onClick={() => assignMutation.mutate()}
-                className="w-full rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="w-full rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
               >
                 {assignMutation.isPending ? "Assegnazione..." : "Assegna asset"}
               </button>
               {asset.assigned_user && (
                 <button
                   onClick={() => returnMutation.mutate()}
-                  className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-medium"
+                  className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-50"
                 >
                   {returnMutation.isPending ? "Rientro..." : "Registra rientro"}
                 </button>
@@ -279,7 +347,7 @@ export function AssetDetailPage() {
             </div>
           </Panel>
 
-          <Panel title="Modifiche operative">
+          <Panel title="Modifiche operative" id="operational-workflow">
             <div className="space-y-3">
               <select value={selectedStatusId} onChange={(event) => setSelectedStatusId(event.target.value)} className={inputClassName}>
                 <option value="">Cambia stato</option>
@@ -292,7 +360,7 @@ export function AssetDetailPage() {
               <button
                 disabled={!selectedStatusId || statusMutation.isPending}
                 onClick={() => statusMutation.mutate()}
-                className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-medium disabled:opacity-50"
+                className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
               >
                 Applica stato
               </button>
@@ -308,7 +376,7 @@ export function AssetDetailPage() {
               <button
                 disabled={locationMutation.isPending}
                 onClick={() => locationMutation.mutate()}
-                className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-medium"
+                className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-50"
               >
                 Applica sede
               </button>
@@ -320,12 +388,37 @@ export function AssetDetailPage() {
   );
 }
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+function Panel({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+    <section id={id} className="app-panel scroll-mt-6">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Modulo operativo</p>
+        <h3 className="mt-2 text-lg font-semibold text-slate-900">{title}</h3>
+      </div>
       <div className="mt-4">{children}</div>
     </section>
+  );
+}
+
+function ActionShortcut({ to, title, description }: { to: string; title: string; description: string }) {
+  const isAnchor = to.startsWith("#");
+  const className =
+    "rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-white";
+
+  if (isAnchor) {
+    return (
+      <a href={to} className={className}>
+        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
+      </a>
+    );
+  }
+
+  return (
+    <Link to={to} className={className}>
+      <p className="text-sm font-semibold text-slate-900">{title}</p>
+      <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
+    </Link>
   );
 }
 
@@ -340,4 +433,183 @@ function InfoGrid({ items }: { items: Array<[string, string]> }) {
       ))}
     </div>
   );
+}
+
+function EventTimelineItem({ event }: { event: AssetEvent }) {
+  const meta = getEventPresentation(event);
+  const performedBy = event.performed_by_user?.full_name ?? "Sistema";
+  const createdAt = new Date(event.created_at).toLocaleString();
+
+  return (
+    <div className="relative rounded-2xl border border-slate-200/80 bg-white/85 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className={["mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", meta.tone].join(" ")}>
+            {meta.label}
+          </span>
+          <div>
+            <p className="font-medium text-slate-900">{meta.title}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {performedBy} · {createdAt}
+            </p>
+          </div>
+        </div>
+        <span className="text-[11px] uppercase tracking-[0.15em] text-slate-400">{event.event_type}</span>
+      </div>
+      {meta.rows.length > 0 && (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {meta.rows.map((row) => (
+            <div key={`${event.id}-${row.label}`} className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-slate-500">{row.label}</p>
+              <p className="mt-1 text-sm text-slate-800">{row.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {meta.note && <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{meta.note}</p>}
+    </div>
+  );
+}
+
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function getEventPresentation(event: AssetEvent): {
+  label: string;
+  title: string;
+  tone: string;
+  rows: Array<{ label: string; value: string }>;
+  note?: string;
+} {
+  const details = event.details ?? {};
+  const note = getString(details.notes);
+
+  switch (event.event_type) {
+    case "CREATE":
+      return {
+        label: "Creazione",
+        title: "Asset registrato nel sistema",
+        tone: "bg-emerald-100 text-emerald-800",
+        rows: buildRows([["Tag asset", getString(details.asset_tag)]]),
+      };
+    case "UPDATE":
+      return {
+        label: "Aggiornamento",
+        title: "Anagrafica asset aggiornata",
+        tone: "bg-sky-100 text-sky-800",
+        rows: buildRows([
+          ["Stato modificato", boolToItalian(getBoolean(details.status_changed))],
+          ["Sede modificata", boolToItalian(getBoolean(details.location_changed))],
+        ]),
+      };
+    case "ASSIGN":
+      return {
+        label: "Assegnazione",
+        title: event.summary,
+        tone: "bg-blue-100 text-blue-800",
+        rows: buildRows([["Utente assegnato", getNumber(details.assigned_user_id)?.toString()]]),
+        note,
+      };
+    case "RETURN":
+      return {
+        label: "Rientro",
+        title: "Asset rientrato in disponibilita",
+        tone: "bg-indigo-100 text-indigo-800",
+        rows: [],
+        note,
+      };
+    case "STATUS_CHANGE":
+      return {
+        label: "Cambio stato",
+        title: "Stato asset aggiornato",
+        tone: "bg-amber-100 text-amber-800",
+        rows: buildRows([
+          ["Da", getString(details.from_status)],
+          ["A", getString(details.to_status) ?? getString(details.status)],
+        ]),
+        note,
+      };
+    case "LOCATION_CHANGE":
+      return {
+        label: "Cambio sede",
+        title: "Collocazione asset aggiornata",
+        tone: "bg-violet-100 text-violet-800",
+        rows: buildRows([
+          ["Da", getString(details.from_location)],
+          ["A", getString(details.to_location)],
+        ]),
+        note,
+      };
+    case "MAINTENANCE_OPEN":
+      return {
+        label: "Manutenzione",
+        title: event.summary,
+        tone: "bg-rose-100 text-rose-800",
+        rows: buildRows([["Ticket", getNumber(details.ticket_id)?.toString()]]),
+      };
+    case "MAINTENANCE_STATUS_CHANGE":
+      return {
+        label: "Manutenzione",
+        title: "Stato ticket manutenzione aggiornato",
+        tone: "bg-rose-100 text-rose-800",
+        rows: buildRows([
+          ["Ticket", getNumber(details.ticket_id)?.toString()],
+          ["Nuovo stato", getString(details.status)],
+        ]),
+      };
+    case "DISPOSAL_RECORDED":
+      return {
+        label: "Dismissione",
+        title: "Data di dismissione registrata",
+        tone: "bg-slate-200 text-slate-700",
+        rows: buildRows([["Data dismissione", getString(details.disposal_date)]]),
+      };
+    default:
+      return {
+        label: "Evento",
+        title: event.summary,
+        tone: "bg-slate-100 text-slate-700",
+        rows: buildRows(Object.entries(details).map(([key, value]) => [humanizeKey(key), formatUnknown(value)])),
+      };
+  }
+}
+
+function buildRows(entries: Array<[string, string | undefined]>): Array<{ label: string; value: string }> {
+  return entries
+    .filter(([, value]) => value && value !== "null")
+    .map(([label, value]) => ({ label, value: value ?? "-" }));
+}
+
+function boolToItalian(value?: boolean): string | undefined {
+  if (value === undefined) return undefined;
+  return value ? "Si" : "No";
+}
+
+function humanizeKey(value: string): string {
+  return value.replace(/_/g, " ");
+}
+
+function formatUnknown(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function getNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function getBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
