@@ -7,6 +7,10 @@ type UseAssetsFilters = {
   statusId?: number;
   categoryId?: number;
   locationId?: number;
+  page?: number;
+  pageSize?: number;
+  sortBy?: "asset_tag" | "name" | "created_at" | "updated_at";
+  sortDir?: "asc" | "desc";
 };
 
 export function useAssets(filters: UseAssetsFilters) {

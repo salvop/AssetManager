@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { getAccessToken } from "@/lib/session";
 
 const AppShell = lazy(() => import("@/app/layout/app-shell").then((module) => ({ default: module.AppShell })));
@@ -59,7 +60,17 @@ function ProtectedShell() {
 
 export function AppRoutes() {
   return (
-    <Suspense fallback={<p className="px-6 py-4 text-sm text-slate-500">Caricamento pagina…</p>}>
+    <Suspense
+      fallback={
+        <div className="px-6 py-4">
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-8 w-48 rounded-xl" />
+            <Skeleton className="h-24 rounded-md" />
+            <Skeleton className="h-24 rounded-md" />
+          </div>
+        </div>
+      }
+    >
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedShell />}>
@@ -85,3 +96,4 @@ export function AppRoutes() {
     </Suspense>
   );
 }
+

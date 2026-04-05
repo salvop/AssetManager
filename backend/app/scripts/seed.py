@@ -19,7 +19,7 @@ from app.models.software import SoftwareLicense, SoftwareLicenseAssignment, Soft
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password
 
-TOTAL_USERS = 100
+TOTAL_USERS = 6
 TOTAL_EMPLOYEES = 150
 
 ASSET_ID_START = 10_001
@@ -132,6 +132,13 @@ def build_name(index: int) -> str:
 
 def seed_users(db: Session) -> dict[int, str]:
     role_ids = get_role_ids(db)
+    # Remove previously generated seed-only users if present (user007..user100).
+    stale_seed_user_ids = db.scalars(select(User.id).where(User.id >= 7, User.username.like("user%"))).all()
+    if stale_seed_user_ids:
+        db.execute(delete(UserRole).where(UserRole.user_id.in_(stale_seed_user_ids)))
+        db.execute(delete(User).where(User.id.in_(stale_seed_user_ids)))
+        db.flush()
+
     users: list[dict[str, object]] = [
         {
             "id": 1,

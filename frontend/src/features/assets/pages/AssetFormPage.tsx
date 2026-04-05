@@ -1,17 +1,19 @@
 import { useEffect } from "react";
-import type { ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, type Control, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createAsset, updateAsset } from "@/features/assets/api/assets";
 import { Button } from "@/components/ui/button";
-import { ControlledSelectField } from "@/components/ui/select-field";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
+import { FormSelectField } from "@/components/ui/select-field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAsset } from "@/features/assets/hooks/useAssets";
 import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
@@ -154,154 +156,217 @@ export function AssetFormPage() {
   });
 
   if (isEditMode && isAssetLoading) {
-    return <p className="text-sm text-slate-500">Caricamento asset…</p>;
+    return (
+      <div className="mx-auto grid max-w-5xl gap-6">
+        <div className="grid gap-3">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-5 w-full max-w-2xl" />
+        </div>
+        <Panel>
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="grid gap-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto grid max-w-5xl gap-6">
       <PageHeader
         eyebrow={isEditMode ? "Aggiornamento asset" : "Nuovo inserimento"}
         title={isEditMode ? "Modifica asset" : "Crea asset"}
         description="Compila i campi anagrafici e lifecycle necessari per la gestione operativa."
         actions={(
-          <Link to="/assets" className="text-sm font-medium text-brand-700">
-            Torna alla lista
-          </Link>
+          <Button asChild variant="ghost">
+            <Link to="/assets">Torna alla lista</Link>
+          </Button>
         )}
       />
 
-      <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="space-y-6">
-        <Panel>
-          <div className="grid gap-4 md:grid-cols-2">
-            {!isEditMode && (
-              <Field label="Tag asset" error={form.formState.errors.asset_tag?.message}>
-                <Input {...form.register("asset_tag")} />
-              </Field>
-            )}
-            <Field label="Nome asset" error={form.formState.errors.name?.message}>
-              <Input {...form.register("name")} />
-            </Field>
-            <Field label="Categoria" error={form.formState.errors.category_id?.message}>
-              <ControlledSelectField
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="grid gap-6">
+          <Panel>
+            <div className="grid gap-4 md:grid-cols-2">
+              {!isEditMode && (
+                <AssetTextField control={form.control} name="asset_tag" label="Tag asset" />
+              )}
+              <AssetTextField control={form.control} name="name" label="Nome asset" />
+              <FormSelectField
                 control={form.control}
                 name="category_id"
+                label="Categoria"
                 placeholder="Seleziona categoria"
                 options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
               />
-            </Field>
-            <Field label="Stato" error={form.formState.errors.status_id?.message}>
-              <ControlledSelectField
+              <FormSelectField
                 control={form.control}
                 name="status_id"
+                label="Stato"
                 placeholder="Seleziona stato"
                 options={statuses.map((item) => ({ value: String(item.id), label: item.name }))}
               />
-            </Field>
-            <Field label="Numero seriale">
-              <Input {...form.register("serial_number")} />
-            </Field>
-            <Field label="Tipo asset">
-              <Input {...form.register("asset_type")} placeholder="Es. Notebook, Server, Monitor" />
-            </Field>
-            <Field label="Marca">
-              <Input {...form.register("brand")} placeholder="Es. Lenovo, Dell, Apple" />
-            </Field>
-            <Field label="Modello">
-              <ControlledSelectField
+              <AssetTextField control={form.control} name="serial_number" label="Numero seriale" />
+              <AssetTextField
+                control={form.control}
+                name="asset_type"
+                label="Tipo asset"
+                placeholder="Es. Notebook, Server, Monitor"
+              />
+              <AssetTextField
+                control={form.control}
+                name="brand"
+                label="Marca"
+                placeholder="Es. Lenovo, Dell, Apple"
+              />
+              <FormSelectField
                 control={form.control}
                 name="model_id"
+                label="Modello"
                 placeholder="Nessun modello"
                 options={models.map((item) => ({ value: String(item.id), label: item.name }))}
               />
-            </Field>
-            <Field label="Sede">
-              <ControlledSelectField
+              <FormSelectField
                 control={form.control}
                 name="location_id"
+                label="Sede"
                 placeholder="Nessuna sede"
                 options={locations.map((item) => ({ value: String(item.id), label: item.name }))}
               />
-            </Field>
-            <Field label="Fornitore">
-              <ControlledSelectField
+              <FormSelectField
                 control={form.control}
                 name="vendor_id"
+                label="Fornitore"
                 placeholder="Nessun fornitore"
                 options={vendors.map((item) => ({ value: String(item.id), label: item.name }))}
               />
-            </Field>
-            <Field label="Dipartimento">
-              <ControlledSelectField
+              <FormSelectField
                 control={form.control}
                 name="current_department_id"
+                label="Dipartimento"
                 placeholder="Nessun dipartimento"
                 options={departments.map((item) => ({ value: String(item.id), label: item.name }))}
               />
-            </Field>
-            <Field label="Data acquisto">
-              <Input type="date" {...form.register("purchase_date")} />
-            </Field>
-            <Field label="Scadenza garanzia">
-              <Input type="date" {...form.register("warranty_expiry_date")} />
-            </Field>
-            <Field label="Fine vita prevista">
-              <Input type="date" {...form.register("expected_end_of_life_date")} />
-            </Field>
-            <Field label="Data dismissione">
-              <Input type="date" {...form.register("disposal_date")} />
-            </Field>
-            <Field label="Cost center">
-              <Input {...form.register("cost_center")} />
-            </Field>
-            <Field label="Piano">
-              <Input {...form.register("location_floor")} />
-            </Field>
-            <Field label="Stanza">
-              <Input {...form.register("location_room")} />
-            </Field>
-            <Field label="Rack">
-              <Input {...form.register("location_rack")} />
-            </Field>
-            <Field label="Slot">
-              <Input {...form.register("location_slot")} />
-            </Field>
-          </div>
-          <Field label="Descrizione" className="mt-4">
-            <Textarea {...form.register("description")} className="min-h-28" />
-          </Field>
-        </Panel>
+              <AssetTextField control={form.control} name="purchase_date" label="Data acquisto" type="date" />
+              <AssetTextField control={form.control} name="warranty_expiry_date" label="Scadenza garanzia" type="date" />
+              <AssetTextField control={form.control} name="expected_end_of_life_date" label="Fine vita prevista" type="date" />
+              <AssetTextField control={form.control} name="disposal_date" label="Data dismissione" type="date" />
+              <AssetTextField control={form.control} name="cost_center" label="Cost center" />
+              <AssetTextField control={form.control} name="location_floor" label="Piano" />
+              <AssetTextField control={form.control} name="location_room" label="Stanza" />
+              <AssetTextField control={form.control} name="location_rack" label="Rack" />
+              <AssetTextField control={form.control} name="location_slot" label="Slot" />
+            </div>
+            <AssetTextareaField
+              control={form.control}
+              name="description"
+              label="Descrizione"
+              className="mt-4"
+              textareaClassName="min-h-28"
+            />
+          </Panel>
 
-        <div className="flex items-center justify-between">
-          <div>
-            {isLoading && <p className="text-sm text-slate-500">Caricamento tabelle di supporto…</p>}
-            {error && <p className="text-sm text-rose-600" aria-live="polite">{error.message}</p>}
-            {mutation.error && <p className="text-sm text-rose-600" aria-live="polite">{mutation.error.message}</p>}
+          <div className="flex items-center justify-between">
+            <div className="grid gap-3">
+              {isLoading ? (
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-56" />
+                </div>
+              ) : null}
+              {error ? (
+                <Alert variant="destructive" aria-live="polite">
+                  <AlertDescription>{error.message}</AlertDescription>
+                </Alert>
+              ) : null}
+              {mutation.error ? (
+                <Alert variant="destructive" aria-live="polite">
+                  <AlertDescription>{mutation.error.message}</AlertDescription>
+                </Alert>
+              ) : null}
+            </div>
+            <Button type="submit">
+              {mutation.isPending ? "Salvataggio…" : isEditMode ? "Salva modifiche" : "Crea asset"}
+            </Button>
           </div>
-          <Button type="submit" className="bg-brand-600 hover:bg-brand-700">
-            {mutation.isPending ? "Salvataggio…" : isEditMode ? "Salva modifiche" : "Crea asset"}
-          </Button>
-        </div>
-      </form>
+        </form>
+      </Form>
     </div>
   );
 }
 
-function Field({
+function AssetTextField({
+  control,
+  name,
   label,
-  error,
-  className,
-  children,
+  type = "text",
+  placeholder,
 }: {
+  control: Control<AssetFormValues>;
+  name: FieldPath<AssetFormValues>;
   label: string;
-  error?: string | undefined;
-  className?: string;
-  children: ReactNode;
+  type?: React.ComponentProps<typeof Input>["type"];
+  placeholder?: string;
 }) {
   return (
-    <div className={className}>
-      <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
-      {children}
-      {error && <p className="mt-1 text-sm text-rose-600">{error}</p>}
-    </div>
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              type={type}
+              placeholder={placeholder}
+              value={field.value ?? ""}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   );
 }
+
+function AssetTextareaField({
+  control,
+  name,
+  label,
+  className,
+  textareaClassName,
+}: {
+  control: Control<AssetFormValues>;
+  name: FieldPath<AssetFormValues>;
+  label: string;
+  className?: string;
+  textareaClassName?: string;
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={className}>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Textarea
+              {...field}
+              value={field.value ?? ""}
+              className={textareaClassName}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+

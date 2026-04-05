@@ -1,18 +1,46 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { type PaginationState, type SortingState } from "@tanstack/react-table";
+import { AlertCircle } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
-import { SelectField } from "@/components/ui/select-field";
+import { FormSelectField } from "@/components/ui/select-field";
 import { createSoftwareLicense } from "@/features/licenses/api/softwareLicenses";
 import { SoftwareLicenseDataTable } from "@/features/licenses/components/software-license-data-table";
-import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
+import {
+  softwareLicenseFormSchema,
+  type SoftwareLicenseFormValues,
+} from "@/features/licenses/schemas/software-license-form.schema";
 import { useSoftwareLicenses } from "@/features/licenses/hooks/useSoftwareLicenses";
+import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
+
+const defaultValues: SoftwareLicenseFormValues = {
+  product_name: "",
+  license_type: "",
+  vendor_id: "",
+  purchased_quantity: "1",
+  purchase_date: "",
+  expiry_date: "",
+  renewal_alert_days: "30",
+  notes: "",
+};
 
 export function SoftwareLicenseListPage() {
   const queryClient = useQueryClient();
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const [search, setSearch] = useState("");
+  const form = useForm<SoftwareLicenseFormValues>({
+    resolver: zodResolver(softwareLicenseFormSchema),
+    defaultValues,
+  });
   const { vendors } = useLookupsBundle({
     vendors: true,
     departments: false,
@@ -23,16 +51,11 @@ export function SoftwareLicenseListPage() {
     employees: false,
     users: false,
   });
-  const [search, setSearch] = useState("");
-  const [productName, setProductName] = useState("");
-  const [licenseType, setLicenseType] = useState("");
-  const [vendorId, setVendorId] = useState("");
-  const [purchasedQuantity, setPurchasedQuantity] = useState("1");
-  const [purchaseDate, setPurchaseDate] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [renewalAlertDays, setRenewalAlertDays] = useState("30");
-  const [notes, setNotes] = useState("");
-  const { data, isLoading, error } = useSoftwareLicenses(search.trim() || undefined);
+  const { data, isLoading, error } = useSoftwareLicenses({
+    ...(search.trim() ? { search: search.trim() } : {}),
+    page: pagination.pageIndex + 1,
+    pageSize: pagination.pageSize,
+  });
 
   const summary = useMemo(() => {
     const items = data?.items ?? [];
@@ -45,33 +68,30 @@ export function SoftwareLicenseListPage() {
   }, [data]);
 
   const createMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: SoftwareLicenseFormValues) =>
       createSoftwareLicense({
-        product_name: productName,
-        license_type: licenseType,
-        vendor_id: vendorId ? Number(vendorId) : null,
-        purchased_quantity: Number(purchasedQuantity),
-        purchase_date: purchaseDate || null,
-        expiry_date: expiryDate || null,
-        renewal_alert_days: Number(renewalAlertDays),
-        notes: notes || null,
+        product_name: values.product_name,
+        license_type: values.license_type,
+        vendor_id: values.vendor_id ? Number(values.vendor_id) : null,
+        purchased_quantity: Number(values.purchased_quantity),
+        purchase_date: values.purchase_date || null,
+        expiry_date: values.expiry_date || null,
+        renewal_alert_days: Number(values.renewal_alert_days),
+        notes: values.notes || null,
       }),
     onSuccess: async () => {
-      setProductName("");
-      setLicenseType("");
-      setVendorId("");
-      setPurchasedQuantity("1");
-      setPurchaseDate("");
-      setExpiryDate("");
-      setRenewalAlertDays("30");
-      setNotes("");
+      form.reset(defaultValues);
       await queryClient.invalidateQueries({ queryKey: ["software-licenses"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 
+  const onSubmit = (values: SoftwareLicenseFormValues) => {
+    createMutation.mutate(values);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Software Asset Management"
         title="Licenze software"
@@ -86,53 +106,161 @@ export function SoftwareLicenseListPage() {
       </div>
 
       <Panel title="Nuova licenza">
-        <p className="mt-2 text-sm text-slate-500">Inserisci il pacchetto licenze da mettere a catalogo.</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Input value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Prodotto" />
-          <Input value={licenseType} onChange={(event) => setLicenseType(event.target.value)} placeholder="Tipo licenza" />
-          <SelectField
-            value={vendorId}
-            onValueChange={setVendorId}
-            placeholder="Nessun vendor"
-            options={vendors.map((vendor) => ({ value: String(vendor.id), label: vendor.name }))}
-          />
-          <Input value={purchasedQuantity} onChange={(event) => setPurchasedQuantity(event.target.value)} type="number" min={1} />
-          <Input value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} type="date" />
-          <Input value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} type="date" />
-          <Input value={renewalAlertDays} onChange={(event) => setRenewalAlertDays(event.target.value)} type="number" min={0} />
-          <Input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Note" />
-        </div>
-        <div className="mt-4 flex items-center justify-between gap-4">
-          <div>{createMutation.error && <p className="text-sm text-rose-600">{createMutation.error.message}</p>}</div>
-          <Button
-            disabled={!productName || !licenseType || createMutation.isPending}
-            onClick={() => createMutation.mutate()}
-          >
-            {createMutation.isPending ? "Salvataggio..." : "Registra licenza"}
-          </Button>
-        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <FormField
+                control={form.control}
+                name="product_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prodotto</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Prodotto" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="license_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo licenza</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Tipo licenza" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormSelectField
+                control={form.control}
+                name="vendor_id"
+                label="Vendor"
+                placeholder="Nessun vendor"
+                options={vendors.map((vendor) => ({
+                  value: String(vendor.id),
+                  label: vendor.name,
+                }))}
+              />
+              <FormField
+                control={form.control}
+                name="purchased_quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantita acquistata</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min={1} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="purchase_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data acquisto</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="expiry_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Scadenza</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="renewal_alert_days"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alert rinnovo (giorni)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min={0} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Note operative" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {createMutation.error ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>Licenza non registrata</AlertTitle>
+                <AlertDescription>{createMutation.error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? "Salvataggio..." : "Registra licenza"}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </Panel>
 
       <Panel className="overflow-hidden p-0">
-        <div className="flex flex-col gap-4 border-b border-slate-200/80 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">Catalogo licenze</h3>
-            <p className="mt-1 text-sm text-slate-500">Ricerca prodotti, scadenze e disponibilita residue.</p>
+        <div className="flex flex-col gap-4 border-b border-border px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-lg font-semibold text-foreground">Catalogo licenze</h3>
+            <p className="text-sm text-muted-foreground">
+              Ricerca prodotti, scadenze e disponibilita residue.
+            </p>
           </div>
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+            }}
             placeholder="Cerca per prodotto o tipo"
             className="lg:max-w-sm"
           />
         </div>
         <div className="px-6 py-5">
-          <SoftwareLicenseDataTable data={data?.items ?? []} />
+          <SoftwareLicenseDataTable
+            data={data?.items ?? []}
+            sorting={sorting}
+            pagination={pagination}
+            onSortingChange={setSorting}
+            onPaginationChange={setPagination}
+            isLoading={isLoading}
+            errorMessage={error?.message ?? null}
+            rowCount={data?.items.length ?? 0}
+            pageCount={Math.max(1, Math.ceil((data?.items.length ?? 0) / pagination.pageSize))}
+          />
         </div>
       </Panel>
-
-      {isLoading && <p className="text-sm text-slate-500">Caricamento licenze...</p>}
-      {error && <p className="text-sm text-rose-600">{error.message}</p>}
     </div>
   );
 }
@@ -140,8 +268,10 @@ export function SoftwareLicenseListPage() {
 function SummaryCard({ title, value }: { title: string; value: number }) {
   return (
     <Panel>
-      <p className="text-sm font-medium text-slate-500">{title}</p>
-      <p className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <p className="text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+      </div>
     </Panel>
   );
 }

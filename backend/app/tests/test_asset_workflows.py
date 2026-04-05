@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.software import SoftwareLicense
 from app.services.email_notifications import EmailNotificationService
 from app.tests.conftest import seed_asset
 
@@ -318,6 +319,28 @@ def test_maintenance_tickets_list_is_paginated(client: TestClient, seeded_db: Se
     assert payload["page"] == 1
     assert payload["page_size"] == 1
     assert payload["total"] >= len(payload["items"])
+
+
+def test_software_licenses_list_is_paginated(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    seeded_db.add_all(
+        [
+            SoftwareLicense(id=1, product_name="Microsoft 365", license_type="Per User", purchased_quantity=25, renewal_alert_days=30),
+            SoftwareLicense(id=2, product_name="Adobe Creative Cloud", license_type="Named User", purchased_quantity=10, renewal_alert_days=30),
+            SoftwareLicense(id=3, product_name="Atlassian Jira", license_type="Subscription", purchased_quantity=50, renewal_alert_days=30),
+        ]
+    )
+    seeded_db.commit()
+
+    headers = auth_headers("admin", "admin123")
+    response = client.get("/api/v1/software-licenses?page=1&page_size=2&sort_by=product_name&sort_dir=asc", headers=headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["page"] == 1
+    assert payload["page_size"] == 2
+    assert payload["total"] == 3
+    assert len(payload["items"]) == 2
+    assert payload["items"][0]["product_name"] == "Adobe Creative Cloud"
+    assert payload["summary"]["total_licenses"] == 3
 
 
 def test_asset_lifecycle_fields_are_persisted(client: TestClient, seeded_db: Session, auth_headers) -> None:

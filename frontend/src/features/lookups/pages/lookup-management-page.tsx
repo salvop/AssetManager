@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
 import {
   createAssetCategory,
@@ -18,13 +20,49 @@ import {
   updateLocation,
   updateVendor,
 } from "@/features/lookups/api/lookups";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { SelectField } from "@/components/ui/select-field";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
+import { FormSelectField } from "@/components/ui/select-field";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
+import {
+  categoryFormSchema,
+  departmentFormSchema,
+  locationFormSchema,
+  modelFormSchema,
+  vendorFormSchema,
+  type CategoryFormValues,
+  type DepartmentFormValues,
+  type LocationFormValues,
+  type ModelFormValues,
+  type VendorFormValues,
+} from "@/features/lookups/schemas/lookup-management.schema";
 import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
 import type { LookupReference } from "@/types/api";
+
+const DEPARTMENT_DEFAULTS: DepartmentFormValues = { code: "", name: "" };
+const LOCATION_DEFAULTS: LocationFormValues = { code: "", name: "", parent_id: "" };
+const CATEGORY_DEFAULTS: CategoryFormValues = { code: "", name: "", parent_id: "" };
+const VENDOR_DEFAULTS: VendorFormValues = { name: "", contact_email: "", contact_phone: "" };
+const MODEL_DEFAULTS: ModelFormValues = { category_id: "", vendor_id: "", name: "", manufacturer: "" };
+type PendingDeletion =
+  | { entity: "department" | "location" | "category" | "vendor" | "model"; id: number; label: string }
+  | null;
 
 export function LookupManagementPage() {
   const queryClient = useQueryClient();
@@ -39,16 +77,33 @@ export function LookupManagementPage() {
     users: false,
   });
 
-  const [department, setDepartment] = useState({ code: "", name: "" });
   const [departmentEditingId, setDepartmentEditingId] = useState<number | null>(null);
-  const [location, setLocation] = useState({ code: "", name: "", parent_id: "" });
   const [locationEditingId, setLocationEditingId] = useState<number | null>(null);
-  const [category, setCategory] = useState({ code: "", name: "", parent_id: "" });
   const [categoryEditingId, setCategoryEditingId] = useState<number | null>(null);
-  const [vendor, setVendor] = useState({ name: "", contact_email: "", contact_phone: "" });
   const [vendorEditingId, setVendorEditingId] = useState<number | null>(null);
-  const [model, setModel] = useState({ category_id: "", vendor_id: "", name: "", manufacturer: "" });
   const [modelEditingId, setModelEditingId] = useState<number | null>(null);
+  const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion>(null);
+
+  const departmentForm = useForm<DepartmentFormValues>({
+    resolver: zodResolver(departmentFormSchema),
+    defaultValues: DEPARTMENT_DEFAULTS,
+  });
+  const locationForm = useForm<LocationFormValues>({
+    resolver: zodResolver(locationFormSchema),
+    defaultValues: LOCATION_DEFAULTS,
+  });
+  const categoryForm = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: CATEGORY_DEFAULTS,
+  });
+  const vendorForm = useForm<VendorFormValues>({
+    resolver: zodResolver(vendorFormSchema),
+    defaultValues: VENDOR_DEFAULTS,
+  });
+  const modelForm = useForm<ModelFormValues>({
+    resolver: zodResolver(modelFormSchema),
+    defaultValues: MODEL_DEFAULTS,
+  });
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ["departments"] });
@@ -59,86 +114,83 @@ export function LookupManagementPage() {
   };
 
   const departmentMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: DepartmentFormValues) =>
       departmentEditingId
-        ? updateDepartment(departmentEditingId, department)
-        : createDepartment(department),
+        ? updateDepartment(departmentEditingId, values)
+        : createDepartment(values),
     onSuccess: async () => {
-      setDepartment({ code: "", name: "" });
+      departmentForm.reset(DEPARTMENT_DEFAULTS);
       setDepartmentEditingId(null);
       await invalidate();
     },
   });
+
   const locationMutation = useMutation({
-    mutationFn: () =>
-      locationEditingId
-        ? updateLocation(locationEditingId, {
-            ...location,
-            parent_id: location.parent_id ? Number(location.parent_id) : null,
-          })
-        : createLocation({
-            ...location,
-            parent_id: location.parent_id ? Number(location.parent_id) : null,
-          }),
+    mutationFn: (values: LocationFormValues) => {
+      const payload = {
+        code: values.code,
+        name: values.name,
+        parent_id: values.parent_id ? Number(values.parent_id) : null,
+      };
+
+      return locationEditingId ? updateLocation(locationEditingId, payload) : createLocation(payload);
+    },
     onSuccess: async () => {
-      setLocation({ code: "", name: "", parent_id: "" });
+      locationForm.reset(LOCATION_DEFAULTS);
       setLocationEditingId(null);
       await invalidate();
     },
   });
+
   const categoryMutation = useMutation({
-    mutationFn: () =>
-      categoryEditingId
-        ? updateAssetCategory(categoryEditingId, {
-            ...category,
-            parent_id: category.parent_id ? Number(category.parent_id) : null,
-          })
-        : createAssetCategory({
-            ...category,
-            parent_id: category.parent_id ? Number(category.parent_id) : null,
-          }),
+    mutationFn: (values: CategoryFormValues) => {
+      const payload = {
+        code: values.code,
+        name: values.name,
+        parent_id: values.parent_id ? Number(values.parent_id) : null,
+      };
+
+      return categoryEditingId
+        ? updateAssetCategory(categoryEditingId, payload)
+        : createAssetCategory(payload);
+    },
     onSuccess: async () => {
-      setCategory({ code: "", name: "", parent_id: "" });
+      categoryForm.reset(CATEGORY_DEFAULTS);
       setCategoryEditingId(null);
       await invalidate();
     },
   });
+
   const vendorMutation = useMutation({
-    mutationFn: () =>
-      vendorEditingId
-        ? updateVendor(vendorEditingId, {
-            name: vendor.name,
-            contact_email: vendor.contact_email || null,
-            contact_phone: vendor.contact_phone || null,
-          })
-        : createVendor({
-            name: vendor.name,
-            contact_email: vendor.contact_email || null,
-            contact_phone: vendor.contact_phone || null,
-          }),
+    mutationFn: (values: VendorFormValues) => {
+      const payload = {
+        name: values.name,
+        contact_email: values.contact_email || null,
+        contact_phone: values.contact_phone || null,
+      };
+
+      return vendorEditingId ? updateVendor(vendorEditingId, payload) : createVendor(payload);
+    },
     onSuccess: async () => {
-      setVendor({ name: "", contact_email: "", contact_phone: "" });
+      vendorForm.reset(VENDOR_DEFAULTS);
       setVendorEditingId(null);
       await invalidate();
     },
   });
+
   const modelMutation = useMutation({
-    mutationFn: () =>
-      modelEditingId
-        ? updateAssetModel(modelEditingId, {
-            category_id: Number(model.category_id),
-            vendor_id: model.vendor_id ? Number(model.vendor_id) : null,
-            name: model.name,
-            manufacturer: model.manufacturer || null,
-          })
-        : createAssetModel({
-            category_id: Number(model.category_id),
-            vendor_id: model.vendor_id ? Number(model.vendor_id) : null,
-            name: model.name,
-            manufacturer: model.manufacturer || null,
-          }),
+    mutationFn: (values: ModelFormValues) => {
+      const payload = {
+        category_id: Number(values.category_id),
+        vendor_id: values.vendor_id ? Number(values.vendor_id) : null,
+        name: values.name,
+        manufacturer: values.manufacturer || null,
+      };
+
+      return modelEditingId ? updateAssetModel(modelEditingId, payload) : createAssetModel(payload);
+    },
     onSuccess: async () => {
-      setModel({ category_id: "", vendor_id: "", name: "", manufacturer: "" });
+      modelForm.reset(MODEL_DEFAULTS);
       setModelEditingId(null);
       await invalidate();
     },
@@ -146,51 +198,61 @@ export function LookupManagementPage() {
 
   const departmentDeleteMutation = useMutation({
     mutationFn: (id: number) => deleteDepartment(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      setPendingDeletion(null);
+      await invalidate();
+    },
   });
   const locationDeleteMutation = useMutation({
     mutationFn: (id: number) => deleteLocation(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      setPendingDeletion(null);
+      await invalidate();
+    },
   });
   const categoryDeleteMutation = useMutation({
     mutationFn: (id: number) => deleteAssetCategory(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      setPendingDeletion(null);
+      await invalidate();
+    },
   });
   const vendorDeleteMutation = useMutation({
     mutationFn: (id: number) => deleteVendor(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      setPendingDeletion(null);
+      await invalidate();
+    },
   });
   const modelDeleteMutation = useMutation({
     mutationFn: (id: number) => deleteAssetModel(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      setPendingDeletion(null);
+      await invalidate();
+    },
   });
 
   const resetDepartmentForm = () => {
-    setDepartment({ code: "", name: "" });
+    departmentForm.reset(DEPARTMENT_DEFAULTS);
     setDepartmentEditingId(null);
   };
   const resetLocationForm = () => {
-    setLocation({ code: "", name: "", parent_id: "" });
+    locationForm.reset(LOCATION_DEFAULTS);
     setLocationEditingId(null);
   };
   const resetCategoryForm = () => {
-    setCategory({ code: "", name: "", parent_id: "" });
+    categoryForm.reset(CATEGORY_DEFAULTS);
     setCategoryEditingId(null);
   };
   const resetVendorForm = () => {
-    setVendor({ name: "", contact_email: "", contact_phone: "" });
+    vendorForm.reset(VENDOR_DEFAULTS);
     setVendorEditingId(null);
   };
   const resetModelForm = () => {
-    setModel({ category_id: "", vendor_id: "", name: "", manufacturer: "" });
+    modelForm.reset(MODEL_DEFAULTS);
     setModelEditingId(null);
   };
 
-  const handleDelete = (label: string, action: () => void) => {
-    if (window.confirm(`Confermi l'eliminazione di "${label}"?`)) {
-      action();
-    }
-  };
   const isMutating =
     departmentMutation.isPending ||
     locationMutation.isPending ||
@@ -203,62 +265,205 @@ export function LookupManagementPage() {
     vendorDeleteMutation.isPending ||
     modelDeleteMutation.isPending;
 
+  const mutationErrorMessage =
+    departmentMutation.error?.message ||
+    locationMutation.error?.message ||
+    categoryMutation.error?.message ||
+    vendorMutation.error?.message ||
+    modelMutation.error?.message ||
+    departmentDeleteMutation.error?.message ||
+    locationDeleteMutation.error?.message ||
+    categoryDeleteMutation.error?.message ||
+    vendorDeleteMutation.error?.message ||
+    modelDeleteMutation.error?.message ||
+    null;
+
+  const hasLookupData =
+    departments.length > 0 || locations.length > 0 || vendors.length > 0 || categories.length > 0 || models.length > 0;
+
+  const confirmDeletion = () => {
+    if (!pendingDeletion) {
+      return;
+    }
+
+    switch (pendingDeletion.entity) {
+      case "department":
+        departmentDeleteMutation.mutate(pendingDeletion.id);
+        break;
+      case "location":
+        locationDeleteMutation.mutate(pendingDeletion.id);
+        break;
+      case "category":
+        categoryDeleteMutation.mutate(pendingDeletion.id);
+        break;
+      case "vendor":
+        vendorDeleteMutation.mutate(pendingDeletion.id);
+        break;
+      case "model":
+        modelDeleteMutation.mutate(pendingDeletion.id);
+        break;
+      default:
+        break;
+    }
+  };
+
+  if (isLoading && !hasLookupData) {
+    return (
+      <div className="grid gap-6">
+        <div className="grid gap-3">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-5 w-full max-w-2xl" />
+        </div>
+        <div className="grid gap-6 xl:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Panel key={index}>
+              <div className="grid gap-4">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-36 w-full" />
+              </div>
+            </Panel>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="grid gap-6">
       <PageHeader
         eyebrow="Amministrazione"
         title="Gestione tabelle"
         description="Mantieni i dati di riferimento usati da asset, assegnazioni e manutenzione."
       />
 
+      {error ? (
+        <Alert variant="destructive" aria-live="polite">
+          <AlertTitle>Errore caricamento lookup</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {mutationErrorMessage ? (
+        <Alert variant="destructive" aria-live="polite">
+          <AlertTitle>Operazione non completata</AlertTitle>
+          <AlertDescription>{mutationErrorMessage}</AlertDescription>
+        </Alert>
+      ) : null}
+
       <div className="grid gap-6 xl:grid-cols-2" aria-busy={isLoading || isMutating}>
-        <LookupPanel title="Dipartimenti" items={departments}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input aria-label="Codice dipartimento" value={department.code} onChange={(e) => setDepartment((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" />
-            <Input aria-label="Nome dipartimento" value={department.name} onChange={(e) => setDepartment((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <ActionButton disabled={!department.code || !department.name || departmentMutation.isPending} onClick={() => departmentMutation.mutate()}>
-              {departmentEditingId ? "Salva dipartimento" : "Aggiungi dipartimento"}
-            </ActionButton>
-            {departmentEditingId && <SecondaryButton onClick={resetDepartmentForm}>Annulla modifica</SecondaryButton>}
-          </div>
+        <LookupPanel title="Dipartimenti" itemCount={departments.length}>
+          <Form {...departmentForm}>
+            <form onSubmit={departmentForm.handleSubmit((values) => departmentMutation.mutate(values))} className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={departmentForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Codice</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Codice dipartimento" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={departmentForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Nome dipartimento" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <LookupFormActions
+                isEditing={departmentEditingId !== null}
+                isPending={departmentMutation.isPending}
+                createLabel="Aggiungi dipartimento"
+                updateLabel="Salva dipartimento"
+                onCancel={resetDepartmentForm}
+              />
+            </form>
+          </Form>
           <LookupList
             items={departments}
             onEdit={(item) => {
               setDepartmentEditingId(item.id);
-              setDepartment({ code: item.code ?? "", name: item.name });
+              departmentForm.reset({ code: item.code ?? "", name: item.name });
             }}
-            onDelete={(item) => handleDelete(item.name, () => departmentDeleteMutation.mutate(item.id))}
+            onDelete={(item) => setPendingDeletion({ entity: "department", id: item.id, label: item.name })}
           />
         </LookupPanel>
 
-        <LookupPanel title="Sedi" items={locations}>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Input aria-label="Codice sede" value={location.code} onChange={(e) => setLocation((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" />
-            <Input aria-label="Nome sede" value={location.name} onChange={(e) => setLocation((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" />
-            <SelectField
-              value={location.parent_id}
-              onValueChange={(value) => setLocation((v) => ({ ...v, parent_id: value }))}
-              placeholder="Sede padre"
-              options={locations
-                .filter((item) => item.id !== locationEditingId)
-                .map((item) => ({ value: String(item.id), label: item.name }))}
-            />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <ActionButton disabled={!location.code || !location.name || locationMutation.isPending} onClick={() => locationMutation.mutate()}>
-              {locationEditingId ? "Salva sede" : "Aggiungi sede"}
-            </ActionButton>
-            {locationEditingId && <SecondaryButton onClick={resetLocationForm}>Annulla modifica</SecondaryButton>}
-          </div>
+        <LookupPanel title="Sedi" itemCount={locations.length}>
+          <Form {...locationForm}>
+            <form onSubmit={locationForm.handleSubmit((values) => locationMutation.mutate(values))} className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <FormField
+                  control={locationForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Codice</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Codice sede" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={locationForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Nome sede" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormSelectField
+                  control={locationForm.control}
+                  name="parent_id"
+                  label="Sede padre"
+                  placeholder="Nessuna sede padre"
+                  options={locations
+                    .filter((item) => item.id !== locationEditingId)
+                    .map((item) => ({ value: String(item.id), label: item.name }))}
+                />
+              </div>
+              <LookupFormActions
+                isEditing={locationEditingId !== null}
+                isPending={locationMutation.isPending}
+                createLabel="Aggiungi sede"
+                updateLabel="Salva sede"
+                onCancel={resetLocationForm}
+              />
+            </form>
+          </Form>
           <LookupList
             items={locations}
             onEdit={(item) => {
               setLocationEditingId(item.id);
-              setLocation({ code: item.code ?? "", name: item.name, parent_id: item.parent_id ? String(item.parent_id) : "" });
+              locationForm.reset({
+                code: item.code ?? "",
+                name: item.name,
+                parent_id: item.parent_id ? String(item.parent_id) : "",
+              });
             }}
-            onDelete={(item) => handleDelete(item.name, () => locationDeleteMutation.mutate(item.id))}
+            onDelete={(item) => setPendingDeletion({ entity: "location", id: item.id, label: item.name })}
             describeItem={(item) => {
               const parentName = locations.find((parentItem) => parentItem.id === item.parent_id)?.name;
               return parentName ? `Padre: ${parentName}` : "";
@@ -266,32 +471,66 @@ export function LookupManagementPage() {
           />
         </LookupPanel>
 
-        <LookupPanel title="Categorie asset" items={categories}>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Input aria-label="Codice categoria" value={category.code} onChange={(e) => setCategory((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" />
-            <Input aria-label="Nome categoria" value={category.name} onChange={(e) => setCategory((v) => ({ ...v, name: e.target.value }))} placeholder="Nome" />
-            <SelectField
-              value={category.parent_id}
-              onValueChange={(value) => setCategory((v) => ({ ...v, parent_id: value }))}
-              placeholder="Categoria padre"
-              options={categories
-                .filter((item) => item.id !== categoryEditingId)
-                .map((item) => ({ value: String(item.id), label: item.name }))}
-            />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <ActionButton disabled={!category.code || !category.name || categoryMutation.isPending} onClick={() => categoryMutation.mutate()}>
-              {categoryEditingId ? "Salva categoria" : "Aggiungi categoria"}
-            </ActionButton>
-            {categoryEditingId && <SecondaryButton onClick={resetCategoryForm}>Annulla modifica</SecondaryButton>}
-          </div>
+        <LookupPanel title="Categorie asset" itemCount={categories.length}>
+          <Form {...categoryForm}>
+            <form onSubmit={categoryForm.handleSubmit((values) => categoryMutation.mutate(values))} className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <FormField
+                  control={categoryForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Codice</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Codice categoria" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={categoryForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Nome categoria" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormSelectField
+                  control={categoryForm.control}
+                  name="parent_id"
+                  label="Categoria padre"
+                  placeholder="Nessuna categoria padre"
+                  options={categories
+                    .filter((item) => item.id !== categoryEditingId)
+                    .map((item) => ({ value: String(item.id), label: item.name }))}
+                />
+              </div>
+              <LookupFormActions
+                isEditing={categoryEditingId !== null}
+                isPending={categoryMutation.isPending}
+                createLabel="Aggiungi categoria"
+                updateLabel="Salva categoria"
+                onCancel={resetCategoryForm}
+              />
+            </form>
+          </Form>
           <LookupList
             items={categories}
             onEdit={(item) => {
               setCategoryEditingId(item.id);
-              setCategory({ code: item.code ?? "", name: item.name, parent_id: item.parent_id ? String(item.parent_id) : "" });
+              categoryForm.reset({
+                code: item.code ?? "",
+                name: item.name,
+                parent_id: item.parent_id ? String(item.parent_id) : "",
+              });
             }}
-            onDelete={(item) => handleDelete(item.name, () => categoryDeleteMutation.mutate(item.id))}
+            onDelete={(item) => setPendingDeletion({ entity: "category", id: item.id, label: item.name })}
             describeItem={(item) => {
               const parentName = categories.find((parentItem) => parentItem.id === item.parent_id)?.name;
               return parentName ? `Padre: ${parentName}` : "";
@@ -299,58 +538,128 @@ export function LookupManagementPage() {
           />
         </LookupPanel>
 
-        <LookupPanel title="Fornitori" items={vendors}>
-          <div className="grid gap-3">
-            <Input aria-label="Nome fornitore" value={vendor.name} onChange={(e) => setVendor((v) => ({ ...v, name: e.target.value }))} placeholder="Nome fornitore" />
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input aria-label="Email contatto fornitore" type="email" inputMode="email" autoComplete="email" spellCheck={false} value={vendor.contact_email} onChange={(e) => setVendor((v) => ({ ...v, contact_email: e.target.value }))} placeholder="Email contatto" />
-              <Input aria-label="Telefono contatto fornitore" type="tel" inputMode="tel" autoComplete="tel" value={vendor.contact_phone} onChange={(e) => setVendor((v) => ({ ...v, contact_phone: e.target.value }))} placeholder="Telefono contatto" />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <ActionButton disabled={!vendor.name || vendorMutation.isPending} onClick={() => vendorMutation.mutate()}>
-              {vendorEditingId ? "Salva fornitore" : "Aggiungi fornitore"}
-            </ActionButton>
-            {vendorEditingId && <SecondaryButton onClick={resetVendorForm}>Annulla modifica</SecondaryButton>}
-          </div>
+        <LookupPanel title="Fornitori" itemCount={vendors.length}>
+          <Form {...vendorForm}>
+            <form onSubmit={vendorForm.handleSubmit((values) => vendorMutation.mutate(values))} className="grid gap-4">
+              <FormField
+                control={vendorForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome fornitore</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Nome fornitore" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={vendorForm.control}
+                  name="contact_email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email contatto</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" inputMode="email" autoComplete="email" spellCheck={false} placeholder="Email contatto" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={vendorForm.control}
+                  name="contact_phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefono contatto</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="tel" inputMode="tel" autoComplete="tel" placeholder="Telefono contatto" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <LookupFormActions
+                isEditing={vendorEditingId !== null}
+                isPending={vendorMutation.isPending}
+                createLabel="Aggiungi fornitore"
+                updateLabel="Salva fornitore"
+                onCancel={resetVendorForm}
+              />
+            </form>
+          </Form>
           <LookupList
             items={vendors}
             describeItem={(item) => [item.contact_email, item.contact_phone].filter(Boolean).join(" · ")}
             onEdit={(item) => {
               setVendorEditingId(item.id);
-              setVendor({
+              vendorForm.reset({
                 name: item.name,
                 contact_email: item.contact_email ?? "",
                 contact_phone: item.contact_phone ?? "",
               });
             }}
-            onDelete={(item) => handleDelete(item.name, () => vendorDeleteMutation.mutate(item.id))}
+            onDelete={(item) => setPendingDeletion({ entity: "vendor", id: item.id, label: item.name })}
           />
         </LookupPanel>
 
-        <LookupPanel title="Modelli asset" items={models} className="xl:col-span-2">
-          <div className="grid gap-3 xl:grid-cols-4">
-            <SelectField
-              value={model.category_id}
-              onValueChange={(value) => setModel((v) => ({ ...v, category_id: value }))}
-              placeholder="Categoria"
-              options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
-            />
-            <SelectField
-              value={model.vendor_id}
-              onValueChange={(value) => setModel((v) => ({ ...v, vendor_id: value }))}
-              placeholder="Fornitore"
-              options={vendors.map((item) => ({ value: String(item.id), label: item.name }))}
-            />
-            <Input aria-label="Nome modello" value={model.name} onChange={(e) => setModel((v) => ({ ...v, name: e.target.value }))} placeholder="Nome modello" />
-            <Input aria-label="Produttore modello" value={model.manufacturer} onChange={(e) => setModel((v) => ({ ...v, manufacturer: e.target.value }))} placeholder="Produttore" />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <ActionButton disabled={!model.category_id || !model.name || modelMutation.isPending} onClick={() => modelMutation.mutate()}>
-              {modelEditingId ? "Salva modello" : "Aggiungi modello"}
-            </ActionButton>
-            {modelEditingId && <SecondaryButton onClick={resetModelForm}>Annulla modifica</SecondaryButton>}
-          </div>
+        <LookupPanel title="Modelli asset" itemCount={models.length} className="xl:col-span-2">
+          <Form {...modelForm}>
+            <form onSubmit={modelForm.handleSubmit((values) => modelMutation.mutate(values))} className="grid gap-4">
+              <div className="grid gap-4 xl:grid-cols-4">
+                <FormSelectField
+                  control={modelForm.control}
+                  name="category_id"
+                  label="Categoria"
+                  placeholder="Seleziona categoria"
+                  options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
+                />
+                <FormSelectField
+                  control={modelForm.control}
+                  name="vendor_id"
+                  label="Fornitore"
+                  placeholder="Nessun fornitore"
+                  options={vendors.map((item) => ({ value: String(item.id), label: item.name }))}
+                />
+                <FormField
+                  control={modelForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome modello</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Nome modello" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={modelForm.control}
+                  name="manufacturer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Produttore</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Produttore" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <LookupFormActions
+                isEditing={modelEditingId !== null}
+                isPending={modelMutation.isPending}
+                createLabel="Aggiungi modello"
+                updateLabel="Salva modello"
+                onCancel={resetModelForm}
+              />
+            </form>
+          </Form>
           <LookupList
             items={models}
             describeItem={(item) =>
@@ -364,65 +673,93 @@ export function LookupManagementPage() {
             }
             onEdit={(item) => {
               setModelEditingId(item.id);
-              setModel({
+              modelForm.reset({
                 category_id: item.category_id ? String(item.category_id) : "",
                 vendor_id: item.vendor_id ? String(item.vendor_id) : "",
                 name: item.name,
                 manufacturer: item.manufacturer ?? "",
               });
             }}
-            onDelete={(item) => handleDelete(item.name, () => modelDeleteMutation.mutate(item.id))}
+            onDelete={(item) => setPendingDeletion({ entity: "model", id: item.id, label: item.name })}
           />
         </LookupPanel>
       </div>
 
-      {isLoading && <p className="text-sm text-slate-500" aria-live="polite">Caricamento tabelle di supporto…</p>}
-      {error && <p className="text-sm text-rose-600" aria-live="polite">{error.message}</p>}
-      {(departmentMutation.error ||
-        locationMutation.error ||
-        categoryMutation.error ||
-        vendorMutation.error ||
-        modelMutation.error ||
-        departmentDeleteMutation.error ||
-        locationDeleteMutation.error ||
-        categoryDeleteMutation.error ||
-        vendorDeleteMutation.error ||
-        modelDeleteMutation.error) && (
-        <p className="text-sm text-rose-600" aria-live="polite">
-          {String(
-            departmentMutation.error?.message ||
-              locationMutation.error?.message ||
-              categoryMutation.error?.message ||
-              vendorMutation.error?.message ||
-              modelMutation.error?.message ||
-              departmentDeleteMutation.error?.message ||
-              locationDeleteMutation.error?.message ||
-              categoryDeleteMutation.error?.message ||
-              vendorDeleteMutation.error?.message ||
-              modelDeleteMutation.error?.message,
-          )}
-        </p>
-      )}
+      <AlertDialog
+        open={pendingDeletion !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDeletion(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare il valore selezionato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDeletion
+                ? `Conferma la rimozione di "${pendingDeletion.label}". L'operazione non e reversibile.`
+                : "Conferma la rimozione del valore selezionato."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeletion}>Elimina</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 function LookupPanel({
   title,
-  items,
+  itemCount,
   className,
   children,
 }: {
   title: string;
-  items: Array<{ id: number; name: string; code?: string | null }>;
+  itemCount: number;
   className?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <Panel {...(className ? { className } : {})} eyebrow="Lookup" title={title}>
-      <div className="mb-4 text-sm text-slate-500">{items.length} elementi</div>
-      <div className="space-y-4">{children}</div>
+      <div className="grid gap-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">Configura i valori utilizzati nei workflow operativi.</p>
+          <Badge tone="neutral">{itemCount} elementi</Badge>
+        </div>
+        {children}
+      </div>
     </Panel>
+  );
+}
+
+function LookupFormActions({
+  isEditing,
+  isPending,
+  createLabel,
+  updateLabel,
+  onCancel,
+}: {
+  isEditing: boolean;
+  isPending: boolean;
+  createLabel: string;
+  updateLabel: string;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button type="submit" disabled={isPending}>
+        {isPending ? "Salvataggio..." : isEditing ? updateLabel : createLabel}
+      </Button>
+      {isEditing ? (
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Annulla modifica
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -437,55 +774,45 @@ function LookupList({
   onDelete: (item: LookupReference) => void;
   describeItem?: (item: LookupReference) => string;
 }) {
+  if (items.length === 0) {
+    return (
+      <Empty className="border border-dashed border-border bg-muted py-10">
+        <EmptyHeader>
+          <EmptyTitle>Nessun elemento presente</EmptyTitle>
+          <EmptyDescription>Aggiungi il primo valore di riferimento per iniziare a popolare il catalogo.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
   return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-      <div className="space-y-2">
-        {items.map((item) => (
-          <div key={item.id} className="flex flex-col gap-3 rounded-lg bg-white px-4 py-3 ring-1 ring-slate-200 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-slate-800">{item.code ? `${item.code} · ${item.name}` : item.name}</p>
-              {describeItem && describeItem(item) && <p className="text-xs text-slate-500">{describeItem(item)}</p>}
+    <div className="grid gap-3 rounded-md border border-border bg-muted p-3">
+      {items.map((item) => {
+        const description = describeItem ? describeItem(item) : "";
+
+        return (
+          <div
+            key={item.id}
+            className="flex flex-col gap-3 rounded-xl border border-border bg-background px-4 py-3 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+          >
+            <div className="grid gap-1">
+              <p className="text-sm font-semibold text-foreground">
+                {item.code ? `${item.code} · ${item.name}` : item.name}
+              </p>
+              {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
             </div>
-            <div className="flex gap-2">
-              <SecondaryButton onClick={() => onEdit(item)}>Modifica</SecondaryButton>
-              <DangerButton onClick={() => onDelete(item)}>Elimina</DangerButton>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" onClick={() => onEdit(item)}>
+                Modifica
+              </Button>
+              <Button type="button" variant="destructive" onClick={() => onDelete(item)}>
+                Elimina
+              </Button>
             </div>
           </div>
-        ))}
-        {items.length === 0 && <span className="text-sm text-slate-500">Nessun elemento presente.</span>}
-      </div>
+        );
+      })}
     </div>
   );
 }
 
-function ActionButton({
-  children,
-  disabled,
-  onClick,
-}: {
-  children: React.ReactNode;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button type="button" disabled={disabled} onClick={onClick} className="bg-brand-600 hover:bg-brand-700">
-      {children}
-    </Button>
-  );
-}
-
-function SecondaryButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <Button type="button" variant="secondary" onClick={onClick}>
-      {children}
-    </Button>
-  );
-}
-
-function DangerButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <Button type="button" variant="secondary" onClick={onClick} className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
-      {children}
-    </Button>
-  );
-}

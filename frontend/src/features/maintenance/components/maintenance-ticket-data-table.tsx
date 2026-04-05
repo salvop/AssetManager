@@ -1,8 +1,8 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, OnChangeFn, PaginationState, SortingState } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
-import { DataTable } from "@/shared/components/data-table/data-table";
+import { DataTable } from "@/components/ui/data-table";
 import type { MaintenanceTicket } from "@/types/api";
 
 const ticketStatusTone: Record<string, "warning" | "info" | "success" | "neutral"> = {
@@ -16,13 +16,14 @@ const columns: ColumnDef<MaintenanceTicket>[] = [
     accessorKey: "title",
     header: "Titolo",
     cell: ({ row }) => (
-      <Link to={`/maintenance-tickets/${row.original.id}`} className="font-medium text-brand-700 hover:underline">
+      <Link to={`/maintenance-tickets/${row.original.id}`} className="font-medium text-primary hover:underline">
         {row.original.title}
       </Link>
     ),
   },
   {
-    accessorKey: "asset",
+    accessorFn: (row) => row.asset.code ?? row.asset.name,
+    id: "asset",
     header: "Asset",
     cell: ({ row }) => row.original.asset.code ?? row.original.asset.name,
   },
@@ -38,14 +39,45 @@ const columns: ColumnDef<MaintenanceTicket>[] = [
   },
 ];
 
-export function MaintenanceTicketDataTable({ data }: { data: MaintenanceTicket[] }) {
+type MaintenanceTicketDataTableProps = {
+  data: MaintenanceTicket[];
+  sorting: SortingState;
+  pagination: PaginationState;
+  onSortingChange: OnChangeFn<SortingState>;
+  onPaginationChange: OnChangeFn<PaginationState>;
+  rowCount: number;
+  pageCount: number;
+  isLoading?: boolean;
+  errorMessage?: string | null;
+};
+
+export function MaintenanceTicketDataTable({
+  data,
+  sorting,
+  pagination,
+  onSortingChange,
+  onPaginationChange,
+  rowCount,
+  pageCount,
+  isLoading = false,
+  errorMessage = null,
+}: MaintenanceTicketDataTableProps) {
   return (
     <DataTable
       columns={columns}
       data={data}
-      pageSize={10}
       caption="Elenco ticket di manutenzione"
-      globalFilterPlaceholder="Filtra ticket per titolo, stato o asset..."
+      sorting={sorting}
+      onSortingChange={onSortingChange}
+      pagination={pagination}
+      onPaginationChange={onPaginationChange}
+      rowCount={rowCount}
+      pageCount={pageCount}
+      isLoading={isLoading}
+      errorMessage={errorMessage}
+      enableGlobalFilter={false}
+      manualPagination
+      pageSizeOptions={[10, 20, 50, 100]}
     />
   );
 }

@@ -31,7 +31,7 @@ The system must remain layered and loosely coupled:
 
 ### Data model decision
 Use the **simplified schema** only.
-Do not expand into procurement, contracts, software licensing, multitenancy, or dynamic custom fields in this phase.
+Use it as the baseline and extend incrementally for approved in-scope modules.
 
 ---
 
@@ -53,6 +53,17 @@ Do not expand into procurement, contracts, software licensing, multitenancy, or 
 - return asset
 - track assignment history
 - optionally update department/location during assignment if part of the workflow
+
+#### Employees
+- maintain an employee directory
+- use employee records as asset assignment targets
+- keep application users separate from employees when useful for operations
+
+#### Asset requests
+- create asset request
+- approve asset request
+- reject asset request
+- track asset request status and notes
 
 #### Event history
 - write lifecycle events in `asset_event_log`
@@ -78,6 +89,10 @@ Application roles:
 - `OPERATOR`
 - `VIEWER`
 
+#### Preferences and settings
+- user preferences for basic personalization
+- app settings for basic operational defaults and document rules
+
 #### Dashboard
 Simple operational summary only:
 - total assets
@@ -86,15 +101,17 @@ Simple operational summary only:
 - open maintenance tickets count
 - recent assets / recent tickets
 
-### Out of scope
-- multitenancy
+#### Extended modules now in scope
 - procurement and contracts
 - software license management
 - custom dynamic fields
 - CMDB dependency graphs
-- approval workflows
+- generic approval workflows
 - external discovery agents
 - advanced reporting beyond MVP dashboard
+
+### Out of scope
+- multitenancy
 - SSO / IdP integration in first pass
 
 ---
@@ -117,7 +134,7 @@ Simple operational summary only:
 - TanStack Query
 - React Router
 - Tailwind CSS
-- shadcn/ui
+- shadcn/ui (mandatory: full UI built with shadcn/ui components)
 - React Hook Form
 - Zod
 
@@ -170,8 +187,10 @@ project-root/
         assignments/
         dashboard/
         documents/
+        employees/
         lookups/
         maintenance/
+        settings/
         users/
       lib/
       routes/
@@ -224,6 +243,7 @@ Responsible for:
 
 The frontend must never depend on the database structure directly.
 Do not expose ORM entities directly as API contracts.
+Use `shadcn/ui` as the only UI component system for primitives and composed interface blocks.
 
 ---
 
@@ -232,6 +252,7 @@ Do not expose ORM entities directly as API contracts.
 Use only these tables for MVP:
 - `departments`
 - `users`
+- `employees`
 - `roles`
 - `user_roles`
 - `locations`
@@ -242,8 +263,11 @@ Use only these tables for MVP:
 - `assets`
 - `asset_assignments`
 - `asset_event_log`
+- `asset_requests`
 - `asset_documents`
 - `maintenance_tickets`
+- `user_preferences`
+- `app_settings`
 
 ### Mandatory DB rules
 - `users.username` unique
@@ -261,10 +285,11 @@ Use only these tables for MVP:
 - only one open assignment per asset at a time
 - asset cannot be assigned if status is `RETIRED` or `DISPOSED`
 - returning an asset closes the current assignment
-- assigning an asset updates current assignee and status on `assets`
+- assigning an asset updates current assignee employee and status on `assets`
 - changing location writes an event log entry
 - changing status writes an event log entry
 - creating an asset writes a `CREATE` event log entry
+- asset requests move through an explicit approval workflow
 
 Use backend services for workflow rules.
 Do not rely on DB triggers for MVP business logic.
@@ -274,7 +299,10 @@ Do not rely on DB triggers for MVP business logic.
 ## Domain model expectations
 
 ### User
-Internal actor that can log in and/or receive assets.
+Internal application actor that can log in and operate the system.
+
+### Employee
+Internal person record that can receive assets and appear in operational directories and request flows.
 
 ### Role
 Application authorization level.
@@ -306,11 +334,20 @@ Historical assignment lifecycle record.
 ### AssetEventLog
 Immutable operational history.
 
+### AssetRequest
+Operational request for a new or reassigned asset with explicit approval state.
+
 ### AssetDocument
 Metadata for uploaded files tied to an asset.
 
 ### MaintenanceTicket
 Operational issue / maintenance workflow.
+
+### UserPreference
+Per-user UI and productivity preferences.
+
+### AppSetting
+Global operational defaults and document-related limits.
 
 ---
 
@@ -345,6 +382,10 @@ Suggested access model:
 - `GET /users/{id}`
 - `POST /users`
 - `PUT /users/{id}`
+- `GET /employees`
+- `GET /employees/{id}`
+- `POST /employees`
+- `PUT /employees/{id}`
 - `GET /departments`
 - `GET /locations`
 - `GET /vendors`
@@ -365,6 +406,12 @@ Suggested access model:
 - `POST /assets/{id}/return`
 - `GET /assets/{id}/assignments`
 
+#### Asset requests
+- `GET /asset-requests`
+- `POST /asset-requests`
+- `POST /asset-requests/{id}/approve`
+- `POST /asset-requests/{id}/reject`
+
 #### Event log
 - `GET /assets/{id}/events`
 
@@ -383,6 +430,12 @@ Suggested access model:
 
 #### Dashboard
 - `GET /dashboard/summary`
+
+#### Preferences and settings
+- `GET /preferences/me`
+- `PUT /preferences/me`
+- `GET /settings/app`
+- `PUT /settings/app`
 
 ### Asset filtering requirements
 `GET /assets` should support:
@@ -470,6 +523,7 @@ Suggested helper:
 ## Frontend implementation rules
 
 The frontend must be a serious business UI, not a demo.
+All UI components must be built with `shadcn/ui` (full shadcn UI requirement).
 
 ### Main routes/pages
 - Login
@@ -537,11 +591,11 @@ When creating an asset:
 ### 2. Assign asset
 When assigning an asset:
 - verify asset exists
-- verify target user exists
+- verify target employee exists
 - verify asset is assignable
 - verify there is no other open assignment
 - create new assignment row
-- update `assets.assigned_user_id`
+- update `assets.assigned_employee_id`
 - update `assets.current_department_id` if part of request
 - optionally update location if part of request
 - set status to `ASSIGNED`
@@ -572,7 +626,15 @@ When opening a ticket:
 - create ticket
 - optionally create asset lifecycle event if the workflow needs it
 
-### 7. Upload document
+### 7. Asset request approval workflow
+When handling an asset request:
+- validate requester and optional target employee
+- create request in `PENDING_APPROVAL`
+- allow only authorized roles to approve or reject
+- persist approval actor, notes, and timestamps
+- prevent duplicate terminal actions
+
+### 8. Upload document
 When uploading a document:
 - validate asset exists
 - validate content type and size
@@ -625,6 +687,7 @@ Provide initial seed data for:
 - asset statuses
 - common asset categories
 - at least one admin user
+- a base employee directory
 - a few departments
 - a few locations
 - optionally a small set of vendors and models for demo/dev use
@@ -683,6 +746,7 @@ At minimum implement tests for:
 - asset assignment
 - asset return
 - status change
+- asset request approval flow
 - unauthorized access
 - role-based restrictions
 - asset filtering
@@ -761,10 +825,13 @@ The project milestone is complete only when:
 4. asset detail page works
 5. assignment and return workflows work end-to-end
 6. status and location changes produce event logs
-7. maintenance ticket MVP works
-8. document upload/list/download/delete works
-9. basic tests pass
-10. README explains how to run the repository
+7. employee directory works
+8. asset request approval workflow works
+9. maintenance ticket MVP works
+10. document upload/list/download/delete works
+11. preferences and app settings work
+12. basic tests pass
+13. README explains how to run the repository
 
 ---
 

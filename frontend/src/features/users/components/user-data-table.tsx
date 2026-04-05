@@ -1,14 +1,22 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, OnChangeFn, PaginationState, SortingState } from "@tanstack/react-table";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/shared/components/data-table/data-table";
+import { DataTable } from "@/components/ui/data-table";
 import type { UserListItem } from "@/types/api";
 
 type UserDataTableProps = {
   data: UserListItem[];
   departmentNameById: Record<number, string>;
   onEdit: (user: UserListItem) => void;
+  sorting: SortingState;
+  pagination: PaginationState;
+  onSortingChange: OnChangeFn<SortingState>;
+  onPaginationChange: OnChangeFn<PaginationState>;
+  rowCount: number;
+  pageCount: number;
+  isLoading?: boolean;
+  errorMessage?: string | null;
 };
 
 function getColumns(
@@ -21,8 +29,8 @@ function getColumns(
     header: "Utente",
     cell: ({ row }) => (
       <div>
-        <p className="font-medium text-slate-900">{row.original.full_name}</p>
-        <p className="text-xs text-slate-500">{row.original.username}</p>
+        <p className="font-medium text-foreground">{row.original.full_name}</p>
+        <p className="text-xs text-muted-foreground">{row.original.username}</p>
       </div>
     ),
   },
@@ -32,7 +40,11 @@ function getColumns(
     cell: ({ row }) => row.original.email ?? "-",
   },
   {
-    accessorKey: "department",
+    accessorFn: (row) => {
+      if (!row.department_id) return "-";
+      return departmentNameById[row.department_id] ?? "-";
+    },
+    id: "department",
     header: "Dipartimento",
     cell: ({ row }) => {
       if (!row.original.department_id) return "-";
@@ -40,7 +52,8 @@ function getColumns(
     },
   },
   {
-    accessorKey: "role_codes",
+    accessorFn: (row) => row.role_codes.join(", "),
+    id: "role_codes",
     header: "Ruoli",
     cell: ({ row }) => row.original.role_codes.join(", "),
   },
@@ -57,14 +70,35 @@ function getColumns(
 ];
 }
 
-export function UserDataTable({ data, departmentNameById, onEdit }: UserDataTableProps) {
+export function UserDataTable({
+  data,
+  departmentNameById,
+  onEdit,
+  sorting,
+  pagination,
+  onSortingChange,
+  onPaginationChange,
+  rowCount,
+  pageCount,
+  isLoading = false,
+  errorMessage = null,
+}: UserDataTableProps) {
   return (
     <DataTable
       columns={getColumns(departmentNameById, onEdit)}
       data={data}
-      pageSize={10}
       caption="Elenco utenti interni"
-      globalFilterPlaceholder="Filtra utenti per nome, username o ruolo..."
+      sorting={sorting}
+      onSortingChange={onSortingChange}
+      pagination={pagination}
+      onPaginationChange={onPaginationChange}
+      rowCount={rowCount}
+      pageCount={pageCount}
+      isLoading={isLoading}
+      errorMessage={errorMessage}
+      enableGlobalFilter={false}
+      manualPagination
+      pageSizeOptions={[10, 20, 50, 100]}
     />
   );
 }

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -22,8 +24,18 @@ def list_licenses(
     db: Session = Depends(get_db),
     current_user=Depends(require_roles("ADMIN", "ASSET_MANAGER", "OPERATOR", "VIEWER")),
     search: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    sort_by: Literal["product_name", "license_type", "expiry_date"] = Query(default="product_name"),
+    sort_dir: Literal["asc", "desc"] = Query(default="asc"),
 ) -> SoftwareLicenseListResponse:
-    return SoftwareLicenseService(db).list_licenses(search=search)
+    return SoftwareLicenseService(db).list_licenses(
+        search=search,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
 
 
 @router.post("", response_model=SoftwareLicenseDetailResponse)

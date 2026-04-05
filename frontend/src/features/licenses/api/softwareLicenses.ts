@@ -8,9 +8,22 @@ import type {
   SoftwareLicenseRevokePayload,
 } from "@/types/api";
 
-export function getSoftwareLicenses(search?: string) {
-  const query = search ? `?search=${encodeURIComponent(search)}` : "";
-  return apiRequest<SoftwareLicenseListResponse>(`/software-licenses${query}`);
+type SoftwareLicenseListParams = {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: "product_name" | "license_type" | "expiry_date";
+  sortDir?: "asc" | "desc";
+};
+
+export function getSoftwareLicenses(params: SoftwareLicenseListParams = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.search) searchParams.set("search", params.search);
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("page_size", String(params.pageSize ?? 20));
+  if (params.sortBy) searchParams.set("sort_by", params.sortBy);
+  if (params.sortDir) searchParams.set("sort_dir", params.sortDir);
+  return apiRequest<SoftwareLicenseListResponse>(`/software-licenses?${searchParams.toString()}`);
 }
 
 export function getSoftwareLicense(licenseId: number) {

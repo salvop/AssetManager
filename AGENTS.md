@@ -11,14 +11,17 @@ The goal is to build a **maintainable MVP** for:
 - asset documents
 - maintenance tickets
 - simple operational dashboard
+- employee directory for assignment targets
+- asset requests with approval
+- user preferences and basic app settings
 
 This file is for **Codex execution behavior**.
-Read it together with `implementation.md`.
+Read it together with `IMPLEMENTATION.md`.
 
 ### Document precedence
 If the repository contains multiple guidance files, apply them in this order:
 1. `AGENTS.md` → execution rules, boundaries, coding behavior, validation behavior
-2. `implementation.md` → product scope, architecture, domain rules, API contract, delivery order
+2. `IMPLEMENTATION.md` → product scope, architecture, domain rules, API contract, delivery order
 3. `README.md` → human-oriented project overview and local setup
 
 If a conflict exists, prefer the **more restrictive** instruction.
@@ -51,6 +54,7 @@ Avoid optimizing for:
 
 ### In scope for this MVP
 - internal user authentication
+- employee directory and employee records used as assignment targets
 - lookup management required by MVP
 - asset inventory and asset detail
 - asset create/update
@@ -58,13 +62,13 @@ Avoid optimizing for:
 - asset status changes
 - asset location changes
 - asset event history
+- asset requests with approval workflow
 - asset documents
 - maintenance tickets
 - basic dashboard summaries
 - admin user and role management
-
-### Out of scope
-- multitenancy
+- user preferences
+- basic app settings
 - procurement and contracts
 - software license management
 - custom dynamic fields
@@ -72,6 +76,9 @@ Avoid optimizing for:
 - approval workflows
 - external discovery agents
 - advanced reporting beyond MVP dashboard
+
+### Out of scope
+- multitenancy
 - external identity provider integration in first pass
 
 If a requested change expands the product surface, stop and ask before implementing it.
@@ -130,6 +137,7 @@ Use the frontend for:
 - filters
 - API consumption
 - user feedback states
+- UI components must be built with `shadcn/ui` (full shadcn UI requirement for this repository)
 
 Do not encode server-side business rules in React.
 The frontend must never depend on table structure directly.
@@ -155,7 +163,7 @@ Use this stack unless there is a strong technical blocker.
 - TanStack Query
 - React Router
 - Tailwind CSS
-- shadcn/ui
+- shadcn/ui (mandatory across all UI components)
 - React Hook Form
 - Zod
 
@@ -178,6 +186,7 @@ Do not introduce large frameworks unless they materially simplify delivery.
 Current MVP tables in scope:
 - `departments`
 - `users`
+- `employees`
 - `roles`
 - `user_roles`
 - `locations`
@@ -188,8 +197,11 @@ Current MVP tables in scope:
 - `assets`
 - `asset_assignments`
 - `asset_event_log`
+- `asset_requests`
 - `asset_documents`
 - `maintenance_tickets`
+- `user_preferences`
+- `app_settings`
 
 Do not redesign the model into a larger enterprise schema during implementation.
 Any extension must be incremental and compatible with the simplified MVP.
@@ -201,12 +213,13 @@ Any extension must be incremental and compatible with the simplified MVP.
 These workflow rules are not optional:
 - only one open assignment per asset at a time
 - an asset cannot be assigned if status is `RETIRED` or `DISPOSED`
-- assigning an asset updates current assignee and status on `assets`
+- assigning an asset updates current assignee employee and status on `assets`
 - returning an asset closes the active assignment
 - status changes create an event log entry
 - location changes create an event log entry
 - asset creation creates an event log entry
 - event history is append-only
+- asset requests follow an explicit approval workflow
 
 Implement these rules in the **service layer**.
 Do not scatter them across routes or React components.
@@ -247,8 +260,10 @@ frontend/src/
     assignments/
     dashboard/
     documents/
+    employees/
     lookups/
     maintenance/
+    settings/
     users/
   lib/
   routes/
@@ -281,13 +296,16 @@ Use explicit DTOs.
 Minimum areas:
 - auth
 - users
+- employees
 - lookup data
 - assets
 - assignments
 - asset events
+- asset requests
 - documents
 - maintenance tickets
 - dashboard summaries
+- user preferences / app settings
 
 Requirements:
 - pagination for list endpoints
@@ -303,6 +321,7 @@ Good:
 - `POST /assets/{id}/return`
 - `PATCH /assets/{id}/status`
 - `PATCH /assets/{id}/location`
+- `POST /asset-requests/{id}/approve`
 
 Avoid over-generic mutation endpoints that leak persistence details.
 
@@ -353,6 +372,7 @@ Design auth so it can be replaced later without rewriting the domain.
 - organize by feature
 - use TanStack Query for server state
 - use React Hook Form + Zod for forms
+- use `shadcn/ui` for all UI primitives and composed UI blocks
 - do not duplicate server state locally without need
 
 ### SQL / migrations
@@ -424,7 +444,10 @@ The repository must become a credible internal enterprise asset management start
 - structured React frontend
 - role-based access
 - working asset workflows
+- employee directory and employee-based assignment flow
+- asset requests with approval flow
 - append-only event history
 - maintenance and document handling
+- user preferences and basic app settings
 - reproducible local startup
 - useful documentation

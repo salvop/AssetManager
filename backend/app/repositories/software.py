@@ -1,3 +1,5 @@
+from typing import Literal
+
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -8,8 +10,32 @@ class SoftwareLicenseRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def list_licenses(self, *, search: str | None = None) -> list[SoftwareLicense]:
-        query: Select[tuple[SoftwareLicense]] = select(SoftwareLicense).order_by(SoftwareLicense.product_name.asc())
+    def list_licenses(
+        self,
+        *,
+        search: str | None = None,
+        sort_by: Literal["product_name", "license_type", "expiry_date"] = "product_name",
+        sort_dir: Literal["asc", "desc"] = "asc",
+    ) -> list[SoftwareLicense]:
+        query = self._build_sorted_query(search=search, sort_by=sort_by, sort_dir=sort_dir)
+        return self.db.scalars(query).all()
+
+    def list_licenses_paginated(
+        self,
+        *,
+        search: str | None = None,
+        page: int,
+        page_size: int,
+        sort_by: Literal["product_name", "license_type", "expiry_date"] = "product_name",
+        sort_dir: Literal["asc", "desc"] = "asc",
+    ) -> tuple[list[SoftwareLicense], int]:
+        base_query = self._build_base_query(search=search)
+        total = self.db.scalar(select(func.count()).select_from(base_query.subquery())) or 0
+        statement = self._build_sorted_query(search=search, sort_by=sort_by, sort_dir=sort_dir).offset((page - 1) * page_size).limit(page_size)
+        return self.db.scalars(statement).all(), total
+
+    def _build_base_query(self, *, search: str | None = None) -> Select[tuple[SoftwareLicense]]:
+        query: Select[tuple[SoftwareLicense]] = select(SoftwareLicense)
         if search:
             pattern = f"%{search}%"
             query = query.where(
@@ -18,7 +44,24 @@ class SoftwareLicenseRepository:
                     SoftwareLicense.license_type.ilike(pattern),
                 )
             )
-        return self.db.scalars(query).all()
+        return query
+
+    def _build_sorted_query(
+        self,
+        *,
+        search: str | None = None,
+        sort_by: Literal["product_name", "license_type", "expiry_date"] = "product_name",
+        sort_dir: Literal["asc", "desc"] = "asc",
+    ) -> Select[tuple[SoftwareLicense]]:
+        query = self._build_base_query(search=search)
+        sort_column = {
+            "product_name": SoftwareLicense.product_name,
+            "license_type": SoftwareLicense.license_type,
+            "expiry_date": SoftwareLicense.expiry_date,
+        }[sort_by]
+        if sort_dir == "desc":
+            return query.order_by(sort_column.desc(), SoftwareLicense.id.desc())
+        return query.order_by(sort_column.asc(), SoftwareLicense.id.asc())
 
     def get_by_id(self, license_id: int) -> SoftwareLicense | None:
         return self.db.get(SoftwareLicense, license_id)

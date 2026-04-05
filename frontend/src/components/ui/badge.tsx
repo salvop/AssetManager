@@ -4,37 +4,47 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400",
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
-        default: "bg-slate-950 text-white",
-        secondary: "bg-slate-100 text-slate-700",
-        destructive: "bg-rose-100 text-rose-700",
-        outline: "border border-slate-200 bg-white text-slate-700",
-        success: "bg-[var(--status-success-bg)] text-[var(--status-success-fg)]",
-        info: "bg-[var(--status-info-bg)] text-[var(--status-info-fg)]",
-        warning: "bg-[var(--status-warning-bg)] text-[var(--status-warning-fg)]",
-        danger: "bg-[var(--status-danger-bg)] text-[var(--status-danger-fg)]",
-        neutral: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-fg)]",
+        default:
+          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
+        outline: "text-foreground",
       },
     },
     defaultVariants: {
-      variant: "neutral",
+      variant: "default",
     },
   }
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLSpanElement>,
+  extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {
-  tone?: "success" | "info" | "warning" | "danger" | "neutral"
+  tone?: "neutral" | "success" | "info" | "warning" | "danger"
 }
 
 function Badge({ className, variant, tone, ...props }: BadgeProps) {
-  const resolvedVariant = tone ?? variant
+  const toneClassName =
+    tone === "success"
+      ? "bg-[var(--status-success-bg)] text-[var(--status-success-fg)] border-transparent"
+      : tone === "info"
+        ? "bg-[var(--status-info-bg)] text-[var(--status-info-fg)] border-transparent"
+        : tone === "warning"
+          ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-fg)] border-transparent"
+          : tone === "danger"
+            ? "bg-[var(--status-danger-bg)] text-[var(--status-danger-fg)] border-transparent"
+            : tone === "neutral"
+              ? "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-fg)] border-transparent"
+              : undefined
+
   return (
-    <span className={cn(badgeVariants({ variant: resolvedVariant }), className)} {...props} />
+    <div className={cn(badgeVariants({ variant }), toneClassName, className)} {...props} />
   )
 }
 

@@ -1,24 +1,48 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff } from "lucide-react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login } from "@/features/auth/api/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { type LoginFormValues, loginSchema } from "@/features/auth/schemas/login.schema";
 import { setAccessToken } from "@/lib/session";
 
+const LOGIN_SUPPORT_EMAIL_PREFERENCE_KEY = "opsasset.login.supportEmail";
+const DEFAULT_SUPPORT_EMAIL = "support@fidesspa.eu";
+
 export function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFormValues>({
+  const [showPassword, setShowPassword] = useState(false);
+  const [isCapsLockOn, setIsCapsLockOn] = useState(false);
+  const helpdeskEmail = useMemo(() => {
+    const envEmail = import.meta.env.VITE_HELPDESK_EMAIL;
+    const fallbackEmail = envEmail ?? DEFAULT_SUPPORT_EMAIL;
+
+    try {
+      const storedEmail = window.localStorage.getItem(LOGIN_SUPPORT_EMAIL_PREFERENCE_KEY);
+      if (storedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(storedEmail)) {
+        return storedEmail;
+      }
+    } catch {
+      return fallbackEmail;
+    }
+
+    return fallbackEmail;
+  }, []);
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
   });
 
   const loginMutation = useMutation({
@@ -34,59 +58,112 @@ export function LoginPage() {
     loginMutation.mutate(values);
   };
 
+  const handlePasswordKeyEvent = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "CapsLock") {
+      setIsCapsLockOn((value) => !value);
+      return;
+    }
+    setIsCapsLockOn(event.getModifierState("CapsLock"));
+  };
+
+  const loginErrorMessage = "Credenziali non valide. Verifica nome utente e password e riprova.";
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(140deg,#eff4ff,#e8eefc)] p-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(47,112,255,0.22),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(31,86,219,0.15),transparent_28%)]" />
-      <div className="soft-grid pointer-events-none absolute inset-0 opacity-40" />
-      <Card className="app-panel-strong relative w-full max-w-md rounded-[30px]">
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardHeader className="px-8 pt-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-700">Accesso interno</p>
-            <CardTitle className="mt-3 text-4xl font-extrabold tracking-tight text-slate-900">Workspace asset</CardTitle>
-            <CardDescription className="mt-3 max-w-sm text-sm leading-6 text-slate-500">
-              Entra nel pannello operativo per controllare inventario, scadenze, assegnazioni e manutenzione.
-            </CardDescription>
-          </CardHeader>
+    <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+      <Card className="w-full max-w-sm">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardHeader>
+              <CardTitle>OpsAsset</CardTitle>
+              <CardDescription>
+                Accedi al pannello operativo per inventario, assegnazioni e manutenzione.
+              </CardDescription>
+            </CardHeader>
 
-          <CardContent className="px-8 pb-8">
-            <div className="space-y-5">
-              <div>
-                <label htmlFor="login-username" className="mb-2 block text-sm font-medium text-slate-700">Username</label>
-                <Input
-                  id="login-username"
-                  autoComplete="username"
-                  spellCheck={false}
-                  className="bg-white/85"
-                  {...register("username")}
+            <CardContent>
+              <div className="flex flex-col gap-4">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome utente</FormLabel>
+                      <FormControl>
+                        <Input
+                          autoFocus
+                          autoComplete="username"
+                          spellCheck={false}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.username && <p className="mt-1 text-sm text-rose-600">{errors.username.message}</p>}
-              </div>
-              <div>
-                <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  autoComplete="current-password"
-                  className="bg-white/85"
-                  {...register("password")}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <div className="relative">
+                        <FormControl>
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
+                            className="pr-10"
+                            onKeyDown={handlePasswordKeyEvent}
+                            onKeyUp={handlePasswordKeyEvent}
+                            {...field}
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2"
+                          onClick={() => setShowPassword((value) => !value)}
+                          aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                        >
+                          {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                        </Button>
+                      </div>
+                      {isCapsLockOn && (
+                        <p className="text-sm font-medium text-amber-700" role="status" aria-live="polite">
+                          Caps Lock attivo.
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.password && <p className="mt-1 text-sm text-rose-600">{errors.password.message}</p>}
               </div>
-            </div>
 
-            <Button
-              type="submit"
-              disabled={loginMutation.isPending}
-              className="mt-8 w-full bg-brand-600 py-3 shadow-[0_18px_30px_rgba(31,86,219,0.24)] hover:bg-brand-700"
-            >
-              {loginMutation.isPending ? "Accesso in corso…" : "Accedi"}
-            </Button>
-            {loginMutation.error && (
-              <p className="mt-3 text-sm text-rose-600" aria-live="polite">{loginMutation.error.message}</p>
-            )}
-          </CardContent>
-        </form>
+              <Button
+                type="submit"
+                disabled={loginMutation.isPending}
+                className="mt-6 w-full"
+              >
+                {loginMutation.isPending ? "Accesso in corso…" : "Accedi"}
+              </Button>
+              <div className="mt-3 text-center">
+                <a
+                  href={`mailto:${helpdeskEmail}`}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Problemi di accesso?
+                </a>
+              </div>
+              {loginMutation.error && (
+                <Alert variant="destructive" className="mt-3" aria-live="polite">
+                  <AlertDescription>{loginErrorMessage}</AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </form>
+        </Form>
       </Card>
     </div>
   );
 }
+

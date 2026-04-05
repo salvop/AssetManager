@@ -2,10 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getMaintenanceTicket, getMaintenanceTickets } from "@/features/maintenance/api/maintenance";
 
-export function useMaintenanceTickets() {
+type UseMaintenanceTicketsParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+export function useMaintenanceTickets(params: UseMaintenanceTicketsParams = {}) {
   return useQuery({
-    queryKey: ["maintenance-tickets"],
-    queryFn: () => getMaintenanceTickets(),
+    queryKey: ["maintenance-tickets", params],
+    queryFn: () => getMaintenanceTickets(params),
   });
 }
 

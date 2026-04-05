@@ -1,7 +1,7 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, OnChangeFn, PaginationState, SortingState } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 
-import { DataTable } from "@/shared/components/data-table/data-table";
+import { DataTable } from "@/components/ui/data-table";
 import type { SoftwareLicenseListItem } from "@/types/api";
 
 const columns: ColumnDef<SoftwareLicenseListItem>[] = [
@@ -9,7 +9,7 @@ const columns: ColumnDef<SoftwareLicenseListItem>[] = [
     accessorKey: "product_name",
     header: "Prodotto",
     cell: ({ row }) => (
-      <Link to={`/software-licenses/${row.original.id}`} className="font-medium text-brand-700 hover:underline">
+      <Link to={`/software-licenses/${row.original.id}`} className="font-medium text-primary hover:underline">
         {row.original.product_name}
       </Link>
     ),
@@ -19,12 +19,16 @@ const columns: ColumnDef<SoftwareLicenseListItem>[] = [
     header: "Tipo",
   },
   {
-    accessorKey: "vendor",
+    enableSorting: false,
+    accessorFn: (row) => row.vendor?.name ?? "-",
+    id: "vendor",
     header: "Vendor",
     cell: ({ row }) => row.original.vendor?.name ?? "-",
   },
   {
-    accessorKey: "availability",
+    enableSorting: false,
+    accessorFn: (row) => row.available_quantity,
+    id: "availability",
     header: "Disponibilita",
     cell: ({ row }) => `${row.original.available_quantity} / ${row.original.purchased_quantity}`,
   },
@@ -35,14 +39,46 @@ const columns: ColumnDef<SoftwareLicenseListItem>[] = [
   },
 ];
 
-export function SoftwareLicenseDataTable({ data }: { data: SoftwareLicenseListItem[] }) {
+type SoftwareLicenseDataTableProps = {
+  data: SoftwareLicenseListItem[];
+  sorting: SortingState;
+  pagination: PaginationState;
+  onSortingChange: OnChangeFn<SortingState>;
+  onPaginationChange: OnChangeFn<PaginationState>;
+  isLoading?: boolean;
+  errorMessage?: string | null;
+  rowCount: number;
+  pageCount: number;
+};
+
+export function SoftwareLicenseDataTable({
+  data,
+  sorting,
+  pagination,
+  onSortingChange,
+  onPaginationChange,
+  isLoading = false,
+  errorMessage = null,
+  rowCount,
+  pageCount,
+}: SoftwareLicenseDataTableProps) {
   return (
     <DataTable
       columns={columns}
       data={data}
-      pageSize={10}
       caption="Catalogo licenze software"
-      globalFilterPlaceholder="Filtra licenze per prodotto, tipo o vendor..."
+      sorting={sorting}
+      onSortingChange={onSortingChange}
+      pagination={pagination}
+      onPaginationChange={onPaginationChange}
+      isLoading={isLoading}
+      errorMessage={errorMessage}
+      enableGlobalFilter={false}
+      manualPagination
+      manualSorting
+      rowCount={rowCount}
+      pageCount={pageCount}
+      pageSizeOptions={[10, 20, 50]}
     />
   );
 }

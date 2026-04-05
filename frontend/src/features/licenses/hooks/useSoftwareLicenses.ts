@@ -2,10 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getSoftwareLicense, getSoftwareLicenses } from "@/features/licenses/api/softwareLicenses";
 
-export function useSoftwareLicenses(search?: string) {
+type UseSoftwareLicensesFilters = {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: "product_name" | "license_type" | "expiry_date";
+  sortDir?: "asc" | "desc";
+};
+
+export function useSoftwareLicenses(filters: UseSoftwareLicensesFilters) {
   return useQuery({
-    queryKey: ["software-licenses", search ?? ""],
-    queryFn: () => getSoftwareLicenses(search),
+    queryKey: ["software-licenses", filters],
+    queryFn: () => getSoftwareLicenses(filters),
   });
 }
 

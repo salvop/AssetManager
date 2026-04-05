@@ -1,7 +1,7 @@
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
 
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 export type SelectOption = {
   value: string;
@@ -13,7 +13,6 @@ type SelectFieldBaseProps = {
   options: SelectOption[];
   placeholder: string;
   disabled?: boolean;
-  triggerClassName?: string;
 };
 
 type SelectFieldProps = SelectFieldBaseProps & {
@@ -27,7 +26,6 @@ export function SelectField({
   options,
   placeholder,
   disabled = false,
-  triggerClassName,
 }: SelectFieldProps) {
   const EMPTY_VALUE = "__empty__";
   const normalizedValue = value || EMPTY_VALUE;
@@ -39,12 +37,7 @@ export function SelectField({
       onValueChange={(nextValue) => onValueChange(nextValue === EMPTY_VALUE ? "" : nextValue)}
       disabled={disabled}
     >
-      <SelectTrigger
-        className={cn(
-          "h-10 rounded-2xl border-slate-300 bg-white px-4 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-brand-400",
-          triggerClassName,
-        )}
-      >
+      <SelectTrigger>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
@@ -74,7 +67,6 @@ export function ControlledSelectField<TFieldValues extends FieldValues>({
   options,
   placeholder,
   disabled = false,
-  triggerClassName,
 }: ControlledSelectFieldProps<TFieldValues>) {
   return (
     <Controller
@@ -87,9 +79,80 @@ export function ControlledSelectField<TFieldValues extends FieldValues>({
           options={options}
           placeholder={placeholder}
           {...(disabled ? { disabled: true } : {})}
-          {...(triggerClassName ? { triggerClassName } : {})}
         />
       )}
+    />
+  );
+}
+
+type FormSelectFieldProps<TFieldValues extends FieldValues> = SelectFieldBaseProps & {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
+  label: string;
+  description?: string;
+  itemClassName?: string;
+  labelClassName?: string;
+};
+
+export function FormSelectField<TFieldValues extends FieldValues>({
+  control,
+  name,
+  label,
+  description,
+  options,
+  placeholder,
+  disabled = false,
+  itemClassName,
+  labelClassName,
+}: FormSelectFieldProps<TFieldValues>) {
+  const EMPTY_VALUE = "__empty__";
+
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => {
+        const normalizedValue =
+          field.value === null || field.value === undefined || field.value === ""
+            ? EMPTY_VALUE
+            : String(field.value);
+        const showPlaceholderOption = normalizedValue === EMPTY_VALUE;
+
+        return (
+          <FormItem className={itemClassName}>
+            <FormLabel className={labelClassName}>{label}</FormLabel>
+            <Select
+              value={normalizedValue}
+              onValueChange={(nextValue) =>
+                field.onChange(nextValue === EMPTY_VALUE ? "" : nextValue)
+              }
+              disabled={disabled}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={placeholder} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {showPlaceholderOption && (
+                  <SelectItem value={EMPTY_VALUE}>{placeholder}</SelectItem>
+                )}
+                {options.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    {...(option.disabled ? { disabled: true } : {})}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {description ? <FormDescription>{description}</FormDescription> : null}
+            <FormMessage />
+          </FormItem>
+        );
+      }}
     />
   );
 }

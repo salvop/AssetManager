@@ -16,8 +16,19 @@ class SoftwareLicenseListItemResponse(BaseModel):
     vendor: AssetReferenceResponse | None
 
 
+class SoftwareLicenseListSummaryResponse(BaseModel):
+    total_licenses: int
+    active_assignments: int
+    available_quantity: int
+    expiring_licenses: int
+
+
 class SoftwareLicenseListResponse(BaseModel):
     items: list[SoftwareLicenseListItemResponse]
+    total: int
+    page: int
+    page_size: int
+    summary: SoftwareLicenseListSummaryResponse
 
 
 class SoftwareLicenseCreateRequest(BaseModel):

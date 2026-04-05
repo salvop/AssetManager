@@ -1,30 +1,42 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { type PaginationState, type SortingState } from "@tanstack/react-table";
+import { AlertCircle } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createUser, getUserRoles, getUsers, updateUser } from "@/features/users/api/users";
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
-import { SelectField } from "@/components/ui/select-field";
+import { FormSelectField } from "@/components/ui/select-field";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
+import { createUser, getUserRoles, getUsers, updateUser } from "@/features/users/api/users";
+import { userFormSchema, type UserFormValues } from "@/features/users/schemas/user-form.schema";
 import { UserDataTable } from "@/features/users/components/user-data-table";
 import type { UserListItem } from "@/types/api";
 
-const initialForm = {
+const defaultValues: UserFormValues = {
   username: "",
   full_name: "",
   email: "",
   password: "",
   department_id: "",
   is_active: true,
-  role_codes: [] as string[],
+  role_codes: [],
 };
 
 export function UserManagementPage() {
   const queryClient = useQueryClient();
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const { data: currentUser } = useCurrentUser();
   const { departments } = useLookupsBundle({
     departments: true,
@@ -36,9 +48,18 @@ export function UserManagementPage() {
     employees: false,
     users: false,
   });
+  const form = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues,
+  });
+
   const { data: usersResponse, isLoading: isUsersLoading, error: usersError } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => getUsers(),
+    queryKey: ["users", pagination],
+    queryFn: () =>
+      getUsers({
+        page: pagination.pageIndex + 1,
+        pageSize: pagination.pageSize,
+      }),
   });
   const { data: rolesResponse, isLoading: isRolesLoading, error: rolesError } = useQuery({
     queryKey: ["user-roles"],
@@ -49,23 +70,25 @@ export function UserManagementPage() {
   const roles = rolesResponse?.items ?? [];
   const isAdmin = currentUser?.role_codes.includes("ADMIN") ?? false;
 
-  const [editingUserId, setEditingUserId] = useState<number | null>(null);
-  const [form, setForm] = useState(initialForm);
-
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ["users"] });
   };
 
+  const resetForm = () => {
+    setEditingUserId(null);
+    form.reset(defaultValues);
+  };
+
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: UserFormValues) => {
       const payload = {
-        full_name: form.full_name,
-        email: form.email || null,
-        password: form.password || null,
-        department_id: form.department_id ? Number(form.department_id) : null,
-        is_active: form.is_active,
-        role_codes: form.role_codes,
-        ...(editingUserId ? {} : { username: form.username }),
+        full_name: values.full_name,
+        email: values.email || null,
+        password: values.password || null,
+        department_id: values.department_id ? Number(values.department_id) : null,
+        is_active: values.is_active,
+        role_codes: values.role_codes,
+        ...(editingUserId ? {} : { username: values.username }),
       };
 
       if (editingUserId) {
@@ -74,8 +97,8 @@ export function UserManagementPage() {
 
       return createUser({
         ...payload,
-        username: form.username,
-        password: form.password,
+        username: values.username,
+        password: values.password,
       });
     },
     onSuccess: async () => {
@@ -84,7 +107,8 @@ export function UserManagementPage() {
     },
   });
 
-  const activeUsers = useMemo(() => users.filter((user) => user.is_active !== false).length, [users]);
+  const activeUsersOnPage = useMemo(() => users.filter((user) => user.is_active !== false).length, [users]);
+  const totalUsers = usersResponse?.total ?? 0;
   const departmentNameById = useMemo(
     () =>
       departments.reduce<Record<number, string>>((acc, department) => {
@@ -94,14 +118,9 @@ export function UserManagementPage() {
     [departments],
   );
 
-  const resetForm = () => {
-    setEditingUserId(null);
-    setForm(initialForm);
-  };
-
   const startEdit = (user: UserListItem) => {
     setEditingUserId(user.id);
-    setForm({
+    form.reset({
       username: user.username,
       full_name: user.full_name,
       email: user.email ?? "",
@@ -112,26 +131,32 @@ export function UserManagementPage() {
     });
   };
 
-  const toggleRole = (roleCode: string) => {
-    setForm((current) => ({
-      ...current,
-      role_codes: current.role_codes.includes(roleCode)
-        ? current.role_codes.filter((item) => item !== roleCode)
-        : [...current.role_codes, roleCode],
-    }));
+  const onSubmit = (values: UserFormValues) => {
+    if (!editingUserId && !values.password.trim()) {
+      form.setError("password", {
+        type: "manual",
+        message: "La password iniziale e obbligatoria.",
+      });
+      return;
+    }
+
+    mutation.mutate(values);
   };
 
   if (!isAdmin) {
     return (
-      <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-amber-900">
-        <h2 className="text-2xl font-semibold">Gestione utenti</h2>
-        <p className="mt-2 text-sm">Questa sezione e disponibile solo per gli amministratori di sistema.</p>
-      </div>
+      <Alert>
+        <AlertCircle />
+        <AlertTitle>Gestione utenti</AlertTitle>
+        <AlertDescription>
+          Questa sezione e disponibile solo per gli amministratori di sistema.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Amministrazione"
         title="Utenti & ruoli"
@@ -139,136 +164,195 @@ export function UserManagementPage() {
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_1.85fr]">
-        <Panel title={editingUserId ? "Modifica utente" : "Nuovo utente"} eyebrow="Gestione account" aria-busy={mutation.isPending}>
-          <div className="flex items-center justify-between">
-            {editingUserId && (
-              <Button type="button" variant="ghost" onClick={resetForm}>
-                Annulla
-              </Button>
-            )}
-          </div>
+        <Panel
+          title={editingUserId ? "Modifica utente" : "Nuovo utente"}
+          eyebrow="Gestione account"
+          aria-busy={mutation.isPending}
+        >
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
+              <div className="flex items-center justify-end">
+                {editingUserId ? (
+                  <Button type="button" variant="ghost" onClick={resetForm}>
+                    Annulla
+                  </Button>
+                ) : null}
+              </div>
 
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <label htmlFor="user-form-username" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Username</span>
-                <Input
-                  id="user-form-username"
-                  name="user-form-username"
-                  value={form.username}
-                  onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
-                  placeholder="Username…"
-                  disabled={Boolean(editingUserId)}
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          id="user-form-username"
+                          autoComplete="username"
+                          placeholder="Username"
+                          disabled={Boolean(editingUserId)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </label>
-              <label htmlFor="user-form-department" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Dipartimento</span>
-                <SelectField
-                  value={form.department_id}
-                  onValueChange={(value) => setForm((current) => ({ ...current, department_id: value }))}
+                <FormSelectField
+                  control={form.control}
+                  name="department_id"
+                  label="Dipartimento"
                   placeholder="Nessun dipartimento"
                   options={departments.map((department) => ({
                     value: String(department.id),
                     label: department.name,
                   }))}
                 />
-              </label>
-            </div>
-
-            <label htmlFor="user-form-full-name" className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Nome completo</span>
-              <Input
-                id="user-form-full-name"
-                name="user-form-full-name"
-                value={form.full_name}
-                onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
-                placeholder="Nome e cognome…"
-              />
-            </label>
-
-            <label htmlFor="user-form-email" className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Email</span>
-              <Input
-                id="user-form-email"
-                name="user-form-email"
-                type="email"
-                autoComplete="email"
-                spellCheck={false}
-                value={form.email}
-                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                placeholder="Email…"
-              />
-            </label>
-
-            <label htmlFor="user-form-password" className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Password</span>
-              <Input
-                id="user-form-password"
-                name="user-form-password"
-                type="password"
-                value={form.password}
-                onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-                placeholder={editingUserId ? "Nuova password opzionale…" : "Password iniziale…"}
-              />
-            </label>
-
-            <label htmlFor="user-form-active" className="flex items-center gap-2 text-sm text-slate-700">
-              <input
-                id="user-form-active"
-                type="checkbox"
-                checked={form.is_active}
-                onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
-              />
-              Utente attivo
-            </label>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">Ruoli</p>
-              <div className="grid gap-2 md:grid-cols-2">
-                {roles.map((role) => (
-                  <label key={role.id} className="flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-3 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={form.role_codes.includes(role.code ?? "")}
-                      onChange={() => toggleRole(role.code ?? "")}
-                    />
-                    {role.name}
-                  </label>
-                ))}
               </div>
-            </div>
 
-            <Button
-              type="button"
-              onClick={() => mutation.mutate()}
-              disabled={
-                mutation.isPending ||
-                !form.full_name ||
-                !form.role_codes.length ||
-                (!editingUserId && (!form.username || !form.password))
-              }
-            >
-              {editingUserId ? "Salva utente" : "Crea utente"}
-            </Button>
+              <FormField
+                control={form.control}
+                name="full_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome completo</FormLabel>
+                    <FormControl>
+                      <Input {...field} id="user-form-full-name" placeholder="Nome e cognome" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {mutation.error && <p className="text-sm text-rose-600" aria-live="polite">{mutation.error.message}</p>}
-          </div>
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        id="user-form-email"
+                        type="email"
+                        autoComplete="email"
+                        spellCheck={false}
+                        placeholder="Email"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        id="user-form-password"
+                        type="password"
+                        autoComplete={editingUserId ? "new-password" : "current-password"}
+                        placeholder={
+                          editingUserId ? "Nuova password opzionale" : "Password iniziale"
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-3 rounded-md border border-border p-4">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(Boolean(checked))} />
+                    </FormControl>
+                    <div className="flex flex-col gap-1">
+                      <FormLabel className="text-sm">Utente attivo</FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="role_codes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ruoli applicativi</FormLabel>
+                    <FormControl>
+                      <ToggleGroup
+                        type="multiple"
+                        variant="outline"
+                        className="flex flex-wrap justify-start gap-2"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        {roles.map((role) => (
+                          <ToggleGroupItem key={role.id} value={role.code ?? ""} className="rounded-full px-4">
+                            {role.name}
+                          </ToggleGroupItem>
+                        ))}
+                      </ToggleGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {mutation.error ? (
+                <Alert variant="destructive">
+                  <AlertCircle />
+                  <AlertTitle>Operazione non completata</AlertTitle>
+                  <AlertDescription>{mutation.error.message}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <Button
+                type="submit"
+                disabled={mutation.isPending || isRolesLoading}
+                className="self-start"
+              >
+                {editingUserId ? "Salva utente" : "Crea utente"}
+              </Button>
+            </form>
+          </Form>
         </Panel>
 
         <Panel title="Utenti interni" eyebrow="Directory" aria-busy={isUsersLoading || isRolesLoading}>
           <div className="flex items-center justify-between">
-            <Badge tone="neutral" className="bg-slate-950 text-white">
-              {activeUsers} attivi su {users.length}
+            <Badge tone="neutral">
+              {activeUsersOnPage} attivi nella pagina • {totalUsers} totali
             </Badge>
           </div>
 
           <div className="mt-4">
-            <UserDataTable data={users} departmentNameById={departmentNameById} onEdit={startEdit} />
-            {(usersError || rolesError) && <p className="text-sm text-rose-600" aria-live="polite">{String(usersError?.message || rolesError?.message)}</p>}
-            {(isUsersLoading || isRolesLoading) && <p className="text-sm text-slate-500" aria-live="polite">Caricamento utenti e ruoli…</p>}
+            <UserDataTable
+              data={users}
+              departmentNameById={departmentNameById}
+              onEdit={startEdit}
+              sorting={sorting}
+              pagination={pagination}
+              onSortingChange={setSorting}
+              onPaginationChange={setPagination}
+              rowCount={totalUsers}
+              pageCount={Math.max(1, Math.ceil(totalUsers / pagination.pageSize))}
+              isLoading={isUsersLoading || isRolesLoading}
+              errorMessage={String(usersError?.message || rolesError?.message || "") || null}
+            />
           </div>
         </Panel>
       </div>
     </div>
   );
 }
+

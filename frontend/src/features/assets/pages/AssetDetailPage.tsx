@@ -14,18 +14,31 @@ import {
   uploadAssetDocument,
 } from "@/features/assets/api/assets";
 import { createMaintenanceTicket } from "@/features/maintenance/api/maintenance";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { AssetIcon, MaintenanceIcon, PeopleIcon, PlusIcon, SettingsIcon } from "@/components/ui/icons";
-import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { Panel } from "@/components/ui/panel";
-import { SelectField } from "@/components/ui/select-field";
-import { Textarea } from "@/components/ui/textarea";
 import { useAssetMaintenance } from "@/features/assets/hooks/useAssetMaintenance";
 import { useAsset } from "@/features/assets/hooks/useAssets";
 import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
 import type { AssetEvent } from "@/types/api";
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { AssetIcon, MaintenanceIcon, PeopleIcon, PlusIcon, SettingsIcon } from "@/components/ui/icons";
+import { Input } from "@/components/ui/input";
+import { SelectField } from "@/components/ui/select-field";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 export function AssetDetailPage() {
   const params = useParams();
@@ -51,6 +64,7 @@ export function AssetDetailPage() {
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketDescription, setTicketDescription] = useState("");
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [pendingDeleteDocument, setPendingDeleteDocument] = useState<{ id: number; fileName: string } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -113,7 +127,9 @@ export function AssetDetailPage() {
 
   const locationMutation = useMutation({
     mutationFn: () =>
-      changeAssetLocation(assetId, { location_id: selectedRelocationLocationId ? Number(selectedRelocationLocationId) : null }),
+      changeAssetLocation(assetId, {
+        location_id: selectedRelocationLocationId ? Number(selectedRelocationLocationId) : null,
+      }),
     onSuccess: invalidate,
   });
 
@@ -124,7 +140,10 @@ export function AssetDetailPage() {
 
   const deleteDocumentMutation = useMutation({
     mutationFn: (documentId: number) => deleteDocument(documentId),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      setPendingDeleteDocument(null);
+      await invalidate();
+    },
   });
 
   const downloadDocumentMutation = useMutation({
@@ -145,8 +164,32 @@ export function AssetDetailPage() {
     },
   });
 
-  if (isLoading) return <p className="text-sm text-slate-500">Caricamento dettaglio asset…</p>;
-  if (error || !asset) return <p className="text-sm text-rose-600">{error?.message ?? "Asset non trovato"}</p>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-10 w-80 rounded-xl" />
+        <div className="grid gap-4 md:grid-cols-4">
+          <Skeleton className="h-24 rounded-md" />
+          <Skeleton className="h-24 rounded-md" />
+          <Skeleton className="h-24 rounded-md" />
+          <Skeleton className="h-24 rounded-md" />
+        </div>
+        <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+          <Skeleton className="h-96 rounded-xl" />
+          <Skeleton className="h-96 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !asset) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Asset non disponibile</AlertTitle>
+        <AlertDescription>{error?.message ?? "Asset non trovato"}</AlertDescription>
+      </Alert>
+    );
+  }
 
   const isAssignmentBlockedByStatus = asset.status.code === "RETIRED" || asset.status.code === "DISPOSED";
   const isAlreadyAssigned = Boolean(asset.assigned_employee);
@@ -164,77 +207,43 @@ export function AssetDetailPage() {
   const canApplyLocation = !locationMutation.isPending && !isLocationUnchanged;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Dettaglio asset"
         title={asset.name}
         description={`${asset.asset_tag} · ${asset.status.name}${asset.location?.name ? ` · ${asset.location.name}` : ""}`}
         actions={(
-          <>
-            <Link
-              to={`/assets/${asset.id}/edit`}
-              className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-            >
-              Modifica asset
-            </Link>
-            <Link
-              to={`/assets/${asset.id}/assignments`}
-              className="inline-flex items-center rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-            >
-              Storico assegnazioni
-            </Link>
-          </>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="outline">
+              <Link to={`/assets/${asset.id}/edit`}>Modifica asset</Link>
+            </Button>
+            <Button asChild>
+              <Link to={`/assets/${asset.id}/assignments`}>Storico assegnazioni</Link>
+            </Button>
+          </div>
         )}
       />
+
       <div className="grid gap-3 md:grid-cols-4">
-          <HeroStat label="Stato" value={asset.status.name} />
-          <HeroStat label="Assegnato a" value={asset.assigned_employee?.full_name ?? "Non assegnato"} />
-          <HeroStat label="Cost center" value={asset.cost_center ?? "-"} />
-          <HeroStat label="Garanzia" value={asset.warranty_expiry_date ?? "-"} />
+        <HeroStat label="Stato" value={asset.status.name} />
+        <HeroStat label="Assegnato a" value={asset.assigned_employee?.full_name ?? "Non assegnato"} />
+        <HeroStat label="Cost center" value={asset.cost_center ?? "-"} />
+        <HeroStat label="Garanzia" value={asset.warranty_expiry_date ?? "-"} />
       </div>
 
-      <section className="app-panel">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Attivita</p>
-          <h3 className="mt-2 text-lg font-semibold text-slate-900">Cosa puoi fare su questo asset</h3>
+      <Panel eyebrow="Attivita" title="Cosa puoi fare su questo asset">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <ActionShortcut to="#assignment-workflow" title="Assegna asset" description="Consegna il bene a un utente o reparto." icon={PeopleIcon} />
+          <ActionShortcut to="#assignment-workflow" title="Registra rientro" description="Chiudi l'assegnazione attiva e rendilo disponibile." icon={PlusIcon} />
+          <ActionShortcut to="#maintenance-workflow" title="Apri ticket" description="Avvia una lavorazione di manutenzione." icon={MaintenanceIcon} />
+          <ActionShortcut to="#operational-workflow" title="Cambia stato" description="Aggiorna stato e collocazione operativa." icon={SettingsIcon} />
+          <ActionShortcut to={`/assets/${asset.id}/edit`} title="Aggiorna anagrafica" description="Modifica dati, lifecycle e dismissione." icon={AssetIcon} />
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <ActionShortcut
-            to="#assignment-workflow"
-            title="Assegna asset"
-            description="Consegna il bene a un utente o reparto."
-            icon={PeopleIcon}
-          />
-          <ActionShortcut
-            to="#assignment-workflow"
-            title="Registra rientro"
-            description="Chiudi l'assegnazione attiva e rendilo disponibile."
-            icon={PlusIcon}
-          />
-          <ActionShortcut
-            to="#maintenance-workflow"
-            title="Apri ticket"
-            description="Avvia una lavorazione di manutenzione."
-            icon={MaintenanceIcon}
-          />
-          <ActionShortcut
-            to="#operational-workflow"
-            title="Cambia stato"
-            description="Aggiorna stato e collocazione operativa."
-            icon={SettingsIcon}
-          />
-          <ActionShortcut
-            to={`/assets/${asset.id}/edit`}
-            title="Aggiorna anagrafica"
-            description="Modifica dati, lifecycle e dismissione."
-            icon={AssetIcon}
-          />
-        </div>
-      </section>
+      </Panel>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <section className="space-y-6">
-          <Panel title="Panoramica">
+        <div className="flex flex-col gap-6">
+          <Panel title="Panoramica" eyebrow="Inventario">
             <InfoGrid
               items={[
                 ["Tipo", asset.asset_type ?? "-"],
@@ -257,280 +266,268 @@ export function AssetDetailPage() {
                 ["Data dismissione", asset.disposal_date ?? "-"],
               ]}
             />
-            {asset.description && <p className="mt-4 text-sm leading-6 text-slate-600">{asset.description}</p>}
+            {asset.description ? <p className="mt-4 text-sm leading-6 text-muted-foreground">{asset.description}</p> : null}
           </Panel>
 
-          <Panel title="Foto asset">
+          <Panel title="Foto asset" eyebrow="Anteprima">
             {asset.photo_document && photoPreviewUrl ? (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <img
                   src={photoPreviewUrl}
                   alt={`Foto ${asset.name}`}
                   width={1280}
                   height={720}
-                  className="max-h-80 w-full rounded-2xl border border-slate-200 object-cover"
+                  className="max-h-80 w-full rounded-md border border-border object-cover"
                 />
-                <div className="flex items-center justify-between text-sm text-slate-500">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>{asset.photo_document.file_name}</span>
-                  <button
-                    onClick={() => downloadDocumentMutation.mutate(asset.photo_document!.id)}
-                    className="font-medium text-brand-700"
-                  >
+                  <Button type="button" variant="link" onClick={() => downloadDocumentMutation.mutate(asset.photo_document!.id)} className="px-0">
                     Scarica foto
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Nessuna foto dedicata disponibile. Carica un documento immagine per vedere l’anteprima asset.</p>
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>Nessuna foto dedicata disponibile</EmptyTitle>
+                  <EmptyDescription>Carica un documento immagine per vedere l'anteprima dell'asset.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             )}
           </Panel>
 
-          <Panel title="Storico eventi">
-            <div className="space-y-3">
-              {asset.events.length === 0 && <p className="text-sm text-slate-500">Nessun evento registrato.</p>}
+          <Panel title="Storico eventi" eyebrow="Audit">
+            <div className="flex flex-col gap-3">
+              {asset.events.length === 0 ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>Nessun evento registrato.</EmptyTitle>
+                    <EmptyDescription>Le modifiche operative appariranno qui in ordine cronologico.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : null}
               {asset.events.map((event) => (
                 <EventTimelineItem key={event.id} event={event} />
               ))}
             </div>
           </Panel>
 
-          <Panel title="Documenti">
-            <label className="mb-4 block rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-sm text-slate-600">
-              Carica un PDF, un'immagine o un file di testo
-              <input
-                type="file"
-                className="mt-3 block"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) uploadMutation.mutate(file);
-                }}
-              />
-            </label>
-            <div className="space-y-2">
-              {asset.documents.length === 0 && <p className="text-sm text-slate-500">Nessun documento caricato.</p>}
-              {asset.documents.map((document) => (
-                <div
-                  key={document.id}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/85 p-3 text-sm"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">{document.file_name}</p>
-                    <p className="text-slate-500">
-                      {document.content_type} · {Math.round(document.size_bytes / 1024)} KB
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-slate-500">{new Date(document.created_at).toLocaleDateString()}</span>
-                    <button
-                      onClick={() => downloadDocumentMutation.mutate(document.id)}
-                      className="text-sm font-medium text-brand-700"
-                    >
-                      Scarica
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Confermi l'eliminazione del documento "${document.file_name}"?`)) {
-                          deleteDocumentMutation.mutate(document.id);
-                        }
-                      }}
-                      className="text-sm font-medium text-rose-600"
-                    >
-                      Elimina
-                    </button>
-                  </div>
+          <Panel title="Documenti" eyebrow="Repository">
+            <div className="flex flex-col gap-4">
+              <label className="block rounded-md border border-dashed border-border bg-muted p-4 text-sm text-muted-foreground">
+                Carica un PDF, un'immagine o un file di testo
+                <input
+                  type="file"
+                  className="mt-3 block"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) uploadMutation.mutate(file);
+                  }}
+                />
+              </label>
+
+              {asset.documents.length === 0 ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>Nessun documento caricato</EmptyTitle>
+                    <EmptyDescription>I documenti associati all'asset saranno disponibili in questa sezione.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {asset.documents.map((document) => (
+                    <div key={document.id} className="flex items-center justify-between rounded-md border border-border bg-background p-3 text-sm">
+                      <div className="flex flex-col gap-1">
+                        <p className="font-medium text-foreground">{document.file_name}</p>
+                        <p className="text-muted-foreground">
+                          {document.content_type} · {Math.round(document.size_bytes / 1024)} KB
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-muted-foreground">{new Date(document.created_at).toLocaleDateString()}</span>
+                        <Button type="button" variant="link" onClick={() => downloadDocumentMutation.mutate(document.id)} className="px-0">
+                          Scarica
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="link"
+                          onClick={() => setPendingDeleteDocument({ id: document.id, fileName: document.file_name })}
+                          className="px-0 text-destructive"
+                        >
+                          Elimina
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {(uploadMutation.error || deleteDocumentMutation.error || downloadDocumentMutation.error) && (
-              <p className="mt-3 text-sm text-rose-600" aria-live="polite">
-                {String(
-                  uploadMutation.error?.message ||
-                    deleteDocumentMutation.error?.message ||
-                    downloadDocumentMutation.error?.message,
-                )}
-              </p>
-            )}
-          </Panel>
-
-          <Panel title="Ticket di manutenzione" id="maintenance-workflow">
-            <div className="space-y-3">
-              <label htmlFor="maintenance-ticket-title" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Titolo ticket</span>
-                <Input
-                  id="maintenance-ticket-title"
-                  name="maintenance-ticket-title"
-                  value={ticketTitle}
-                  onChange={(event) => setTicketTitle(event.target.value)}
-                  placeholder="Titolo ticket…"
-                />
-              </label>
-              <label htmlFor="maintenance-ticket-description" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Descrizione</span>
-                <Textarea
-                  id="maintenance-ticket-description"
-                  name="maintenance-ticket-description"
-                  value={ticketDescription}
-                  onChange={(event) => setTicketDescription(event.target.value)}
-                  placeholder="Descrivi il problema…"
-                />
-              </label>
-              <Button
-                type="button"
-                disabled={!ticketTitle || maintenanceMutation.isPending}
-                onClick={() => maintenanceMutation.mutate()}
-              >
-                {maintenanceMutation.isPending ? "Apertura…" : "Apri ticket di manutenzione"}
-              </Button>
-            </div>
-
-            <div className="mt-5 space-y-2">
-              {(maintenanceTickets?.items ?? []).length === 0 && (
-                <p className="text-sm text-slate-500">Nessun ticket di manutenzione collegato a questo asset.</p>
               )}
-              {(maintenanceTickets?.items ?? []).map((ticket) => (
-                <Link
-                  key={ticket.id}
-                  to={`/maintenance-tickets/${ticket.id}`}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/85 p-3 text-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">{ticket.title}</p>
-                    <p className="text-slate-500">{ticket.status}</p>
-                  </div>
-                  <span className="text-slate-500">{new Date(ticket.opened_at).toLocaleDateString()}</span>
-                </Link>
-              ))}
+
+              {uploadMutation.error || deleteDocumentMutation.error || downloadDocumentMutation.error ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Operazione documentale non completata</AlertTitle>
+                  <AlertDescription>
+                    {String(uploadMutation.error?.message || deleteDocumentMutation.error?.message || downloadDocumentMutation.error?.message)}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </div>
           </Panel>
-        </section>
 
-        <section className="space-y-6">
-          <Panel title="Assegna asset" id="assignment-workflow">
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                <p className="font-semibold text-slate-800">Contesto operativo</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Badge tone={isAssignmentBlockedByStatus ? "danger" : "neutral"}>
-                    Stato: {asset.status.code ?? asset.status.name}
-                  </Badge>
-                  <Badge tone={asset.assigned_employee ? "warning" : "success"}>
-                    {asset.assigned_employee ? `Assegnato a ${asset.assigned_employee.full_name}` : "Disponibile"}
-                  </Badge>
-                </div>
+          <Panel title="Ticket di manutenzione" eyebrow="Supporto" id="maintenance-workflow">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="maintenance-ticket-title" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Titolo ticket
+                </label>
+                <Input id="maintenance-ticket-title" name="maintenance-ticket-title" value={ticketTitle} onChange={(event) => setTicketTitle(event.target.value)} placeholder="Titolo ticket..." />
               </div>
-              <label htmlFor="assign-employee" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Assegnatario</span>
-                <SelectField
-                  value={selectedEmployeeId}
-                  onValueChange={setSelectedEmployeeId}
-                  placeholder="Seleziona assegnatario"
-                  options={employees.map((employee) => ({
-                    value: String(employee.id),
-                    label: employee.full_name,
-                  }))}
-                />
-              </label>
-              <label htmlFor="assign-department" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Dipartimento</span>
-                <SelectField
-                  value={selectedDepartmentId}
-                  onValueChange={setSelectedDepartmentId}
-                  placeholder="Nessun dipartimento"
-                  options={departments.map((item) => ({
-                    value: String(item.id),
-                    label: item.name,
-                  }))}
-                />
-              </label>
-              <label htmlFor="assign-location" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sede assegnazione</span>
-                <SelectField
-                  value={selectedAssignmentLocationId}
-                  onValueChange={setSelectedAssignmentLocationId}
-                  placeholder="Mantieni sede attuale"
-                  options={locations.map((item) => ({
-                    value: String(item.id),
-                    label: item.name,
-                  }))}
-                />
-              </label>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="maintenance-ticket-description" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Descrizione
+                </label>
+                <Textarea id="maintenance-ticket-description" name="maintenance-ticket-description" value={ticketDescription} onChange={(event) => setTicketDescription(event.target.value)} placeholder="Descrivi il problema..." />
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" disabled={!ticketTitle || maintenanceMutation.isPending} onClick={() => maintenanceMutation.mutate()}>
+                  {maintenanceMutation.isPending ? "Apertura..." : "Apri ticket di manutenzione"}
+                </Button>
+              </div>
+
+              {(maintenanceTickets?.items ?? []).length === 0 ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>Nessun ticket di manutenzione collegato</EmptyTitle>
+                    <EmptyDescription>Apri il primo ticket per tracciare interventi e anomalie su questo asset.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {(maintenanceTickets?.items ?? []).map((ticket) => (
+                    <Link key={ticket.id} to={`/maintenance-tickets/${ticket.id}`} className="flex items-center justify-between rounded-md border border-border bg-background p-3 text-sm transition hover:bg-accent">
+                      <div className="flex flex-col gap-1">
+                        <p className="font-medium text-foreground">{ticket.title}</p>
+                        <p className="text-muted-foreground">{ticket.status}</p>
+                      </div>
+                      <span className="text-muted-foreground">{new Date(ticket.opened_at).toLocaleDateString()}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Panel>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <Panel title="Assegna asset" eyebrow="Workflow" id="assignment-workflow">
+            <div className="flex flex-col gap-3">
+              <Alert>
+                <AlertTitle>Contesto operativo</AlertTitle>
+                <AlertDescription>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge tone={isAssignmentBlockedByStatus ? "danger" : "neutral"}>Stato: {asset.status.code ?? asset.status.name}</Badge>
+                    <Badge tone={asset.assigned_employee ? "warning" : "success"}>
+                      {asset.assigned_employee ? `Assegnato a ${asset.assigned_employee.full_name}` : "Disponibile"}
+                    </Badge>
+                  </div>
+                </AlertDescription>
+              </Alert>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="assign-employee" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Assegnatario
+                </label>
+                <SelectField value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} placeholder="Seleziona assegnatario" options={employees.map((employee) => ({ value: String(employee.id), label: employee.full_name }))} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="assign-department" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Dipartimento
+                </label>
+                <SelectField value={selectedDepartmentId} onValueChange={setSelectedDepartmentId} placeholder="Nessun dipartimento" options={departments.map((item) => ({ value: String(item.id), label: item.name }))} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="assign-location" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Sede assegnazione
+                </label>
+                <SelectField value={selectedAssignmentLocationId} onValueChange={setSelectedAssignmentLocationId} placeholder="Mantieni sede attuale" options={locations.map((item) => ({ value: String(item.id), label: item.name }))} />
+              </div>
               <Button type="button" disabled={!canAssign} onClick={() => assignMutation.mutate()} className="w-full">
-                {assignMutation.isPending ? "Assegnazione…" : "Assegna asset"}
+                {assignMutation.isPending ? "Assegnazione..." : "Assegna asset"}
               </Button>
-              {!canAssign && (
-                <p className="text-xs text-slate-500" aria-live="polite">
+              {!canAssign ? (
+                <p className="text-xs text-muted-foreground" aria-live="polite">
                   {isAssignmentBlockedByStatus
                     ? "Asset non assegnabile: stato RETIRED o DISPOSED."
                     : isAlreadyAssigned
                       ? "Asset gia assegnato: registra prima il rientro."
                       : "Seleziona un assegnatario per procedere."}
                 </p>
-              )}
-              {asset.assigned_employee && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => returnMutation.mutate()}
-                  disabled={returnMutation.isPending}
-                  className="w-full"
-                >
-                  {returnMutation.isPending ? "Rientro…" : "Registra rientro"}
+              ) : null}
+              {asset.assigned_employee ? (
+                <Button type="button" variant="secondary" onClick={() => returnMutation.mutate()} disabled={returnMutation.isPending} className="w-full">
+                  {returnMutation.isPending ? "Rientro..." : "Registra rientro"}
                 </Button>
-              )}
+              ) : null}
             </div>
           </Panel>
 
-          <Panel title="Modifiche operative" id="operational-workflow">
-            <div className="space-y-3">
-              <label htmlFor="operational-status" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Stato</span>
-                <SelectField
-                  value={selectedStatusId}
-                  onValueChange={setSelectedStatusId}
-                  placeholder="Cambia stato"
-                  options={statuses.map((item) => ({
-                    value: String(item.id),
-                    label: item.name,
-                  }))}
-                />
-              </label>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!canApplyStatus}
-                onClick={() => statusMutation.mutate()}
-                className="w-full"
-              >
+          <Panel title="Modifiche operative" eyebrow="Aggiornamenti" id="operational-workflow">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="operational-status" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Stato
+                </label>
+                <SelectField value={selectedStatusId} onValueChange={setSelectedStatusId} placeholder="Cambia stato" options={statuses.map((item) => ({ value: String(item.id), label: item.name }))} />
+              </div>
+              <Button type="button" variant="secondary" disabled={!canApplyStatus} onClick={() => statusMutation.mutate()} className="w-full">
                 Applica stato
               </Button>
-              {isStatusUnchanged && <p className="text-xs text-slate-500">Lo stato selezionato e gia quello corrente.</p>}
+              {isStatusUnchanged ? <p className="text-xs text-muted-foreground">Lo stato selezionato e gia quello corrente.</p> : null}
 
-              <label htmlFor="operational-location" className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sede</span>
-                <SelectField
-                  value={selectedRelocationLocationId}
-                  onValueChange={setSelectedRelocationLocationId}
-                  placeholder="Nessuna sede"
-                  options={locations.map((item) => ({
-                    value: String(item.id),
-                    label: item.name,
-                  }))}
-                />
-              </label>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!canApplyLocation}
-                onClick={() => locationMutation.mutate()}
-                className="w-full"
-              >
+              <div className="flex flex-col gap-2">
+                <label htmlFor="operational-location" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Sede
+                </label>
+                <SelectField value={selectedRelocationLocationId} onValueChange={setSelectedRelocationLocationId} placeholder="Nessuna sede" options={locations.map((item) => ({ value: String(item.id), label: item.name }))} />
+              </div>
+              <Button type="button" variant="secondary" disabled={!canApplyLocation} onClick={() => locationMutation.mutate()} className="w-full">
                 Applica sede
               </Button>
-              {isLocationUnchanged && <p className="text-xs text-slate-500">La sede selezionata coincide con quella attuale.</p>}
+              {isLocationUnchanged ? <p className="text-xs text-muted-foreground">La sede selezionata coincide con quella attuale.</p> : null}
             </div>
           </Panel>
-        </section>
+        </div>
       </div>
+
+      <AlertDialog
+        open={pendingDeleteDocument !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDeleteDocument(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare il documento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDeleteDocument
+                ? `Il file "${pendingDeleteDocument.fileName}" verra rimosso dal repository documentale dell'asset.`
+                : "Questa operazione rimuove in modo definitivo il documento selezionato."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDeleteDocument) {
+                  deleteDocumentMutation.mutate(pendingDeleteDocument.id);
+                }
+              }}
+            >
+              Elimina documento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -547,28 +544,27 @@ function ActionShortcut({
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }) {
   const isAnchor = to.startsWith("#");
-  const className =
-    "rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-white";
+  const className = "rounded-md border border-border bg-muted px-4 py-4 transition hover:bg-accent";
 
   if (isAnchor) {
     return (
       <a href={to} className={className}>
-        <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <Icon className="h-4 w-4 text-slate-500" />
+        <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Icon className="h-4 w-4 text-muted-foreground" />
           {title}
         </p>
-        <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">{description}</p>
       </a>
     );
   }
 
   return (
     <Link to={to} className={className}>
-      <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <Icon className="h-4 w-4 text-slate-500" />
+      <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Icon className="h-4 w-4 text-muted-foreground" />
         {title}
       </p>
-      <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">{description}</p>
     </Link>
   );
 }
@@ -578,8 +574,8 @@ function InfoGrid({ items }: { items: Array<[string, string]> }) {
     <div className="grid gap-4 md:grid-cols-2">
       {items.map(([label, value]) => (
         <div key={label}>
-          <p className="text-xs uppercase tracking-[0.15em] text-slate-500">{label}</p>
-          <p className="mt-1 text-sm text-slate-900">{value}</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+          <p className="mt-1 text-sm text-foreground">{value}</p>
         </div>
       ))}
     </div>
@@ -592,41 +588,41 @@ function EventTimelineItem({ event }: { event: AssetEvent }) {
   const createdAt = new Date(event.created_at).toLocaleString();
 
   return (
-    <div className="relative rounded-2xl border border-slate-200/80 bg-white/85 p-4">
+    <div className="relative rounded-md border border-border bg-background p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className={["mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", meta.tone].join(" ")}>
             {meta.label}
           </span>
           <div>
-            <p className="font-medium text-slate-900">{meta.title}</p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="font-medium text-foreground">{meta.title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               {performedBy} · {createdAt}
             </p>
           </div>
         </div>
-        <span className="text-[11px] uppercase tracking-[0.15em] text-slate-400">{event.event_type}</span>
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">{event.event_type}</span>
       </div>
-      {meta.rows.length > 0 && (
+      {meta.rows.length > 0 ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {meta.rows.map((row) => (
-            <div key={`${event.id}-${row.label}`} className="rounded-xl bg-slate-50 px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.15em] text-slate-500">{row.label}</p>
-              <p className="mt-1 text-sm text-slate-800">{row.value}</p>
+            <div key={`${event.id}-${row.label}`} className="rounded-xl bg-muted px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{row.label}</p>
+              <p className="mt-1 text-sm text-foreground">{row.value}</p>
             </div>
           ))}
         </div>
-      )}
-      {meta.note && <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{meta.note}</p>}
+      ) : null}
+      {meta.note ? <p className="mt-4 rounded-xl bg-muted px-3 py-2 text-sm text-foreground">{meta.note}</p> : null}
     </div>
   );
 }
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+    <div className="rounded-md border border-border bg-card p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-foreground">{value}</p>
     </div>
   );
 }
@@ -721,23 +717,21 @@ function getEventPresentation(event: AssetEvent): {
       return {
         label: "Dismissione",
         title: "Data di dismissione registrata",
-        tone: "bg-slate-200 text-slate-700",
+        tone: "bg-secondary text-secondary-foreground",
         rows: buildRows([["Data dismissione", getString(details.disposal_date)]]),
       };
     default:
       return {
         label: "Evento",
         title: event.summary,
-        tone: "bg-slate-100 text-slate-700",
+        tone: "bg-secondary text-secondary-foreground",
         rows: buildRows(Object.entries(details).map(([key, value]) => [humanizeKey(key), formatUnknown(value)])),
       };
   }
 }
 
 function buildRows(entries: Array<[string, string | undefined]>): Array<{ label: string; value: string }> {
-  return entries
-    .filter(([, value]) => value && value !== "null")
-    .map(([label, value]) => ({ label, value: value ?? "-" }));
+  return entries.filter(([, value]) => value && value !== "null").map(([label, value]) => ({ label, value: value ?? "-" }));
 }
 
 function boolToItalian(value?: boolean): string | undefined {
@@ -767,3 +761,5 @@ function getNumber(value: unknown): number | undefined {
 function getBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
+
+

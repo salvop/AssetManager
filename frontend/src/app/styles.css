@@ -6,7 +6,7 @@
 
 :root {
   --radius: 1rem;
-  --background: 210 40% 98%;
+  --background: 214 44% 97%;
   --foreground: 217 33% 10%;
   --card: 0 0% 100%;
   --card-foreground: 217 33% 10%;
@@ -16,14 +16,14 @@
   --primary-foreground: 210 40% 98%;
   --secondary: 225 100% 94%;
   --secondary-foreground: 217 33% 10%;
-  --muted: 214 32% 91%;
+  --muted: 214 34% 92%;
   --muted-foreground: 215 16% 47%;
-  --accent: 213 100% 96%;
+  --accent: 213 100% 95%;
   --accent-foreground: 217 33% 10%;
   --destructive: 350 84% 52%;
   --destructive-foreground: 210 40% 98%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
+  --border: 214 30% 88%;
+  --input: 214 30% 88%;
   --ring: 219 76% 53%;
   --brand-50: #eef4ff;
   --brand-100: #d9e6ff;
@@ -55,8 +55,13 @@ html {
 body {
   font-family: "Inter", "Geist Sans", "Segoe UI", sans-serif;
   color: hsl(var(--foreground));
-  background: hsl(var(--background));
+  background:
+    radial-gradient(1200px 650px at -10% -20%, rgba(31, 86, 219, 0.1), transparent 55%),
+    radial-gradient(900px 520px at 110% 0%, rgba(47, 112, 255, 0.1), transparent 52%),
+    linear-gradient(180deg, #f7f9fd 0%, #f3f6fc 100%);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 h1,
@@ -71,78 +76,4 @@ h2 {
 ::selection {
   background: rgba(47, 112, 255, 0.18);
   color: hsl(var(--foreground));
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(26, 69, 177, 0.3) transparent;
-}
-
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: rgba(26, 69, 177, 0.22);
-  border-radius: 999px;
-}
-
-.app-panel {
-  border-radius: 28px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--card));
-  padding: 1.5rem;
-  box-shadow: 0 10px 26px rgba(20, 32, 25, 0.04);
-}
-
-.app-panel-strong {
-  border-radius: 32px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--card));
-  padding: 2rem;
-  box-shadow: 0 18px 42px rgba(20, 32, 25, 0.05);
-}
-
-.soft-grid {
-  display: none;
-}
-
-@layer components {
-  .app-input {
-    width: 100%;
-    border-radius: 1rem;
-    border: 1px solid hsl(var(--input));
-    background: hsl(var(--background));
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
-  }
-
-  .app-input::placeholder {
-    color: rgb(100 116 139);
-  }
-
-  .app-input:focus-visible {
-    outline: none;
-    border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 2px var(--brand-ring);
-  }
-
-  .app-input:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-
-  select.app-input {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    padding-right: 2.75rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M6 8L10 12L14 8' stroke='%23334155' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-size: 1rem;
-    background-position: right 1.2rem center;
-  }
 }

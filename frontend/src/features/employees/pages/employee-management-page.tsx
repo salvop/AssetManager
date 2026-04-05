@@ -1,17 +1,28 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, Users } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createEmployee, getEmployees, updateEmployee } from "@/features/employees/api/employees";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { SelectField } from "@/components/ui/select-field";
-import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import { createEmployee, getEmployees, updateEmployee } from "@/features/employees/api/employees";
+import { employeeFormSchema, type EmployeeFormValues } from "@/features/employees/schemas/employee-form.schema";
 import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { FormSelectField } from "@/components/ui/select-field";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import type { EmployeeListItem } from "@/types/api";
 
-const initialForm = {
+const defaultValues: EmployeeFormValues = {
   employee_code: "",
   full_name: "",
   email: "",
@@ -33,34 +44,40 @@ export function EmployeeManagementPage() {
     employees: false,
     users: false,
   });
+  const form = useForm<EmployeeFormValues>({
+    resolver: zodResolver(employeeFormSchema),
+    defaultValues,
+  });
   const { data: employeesResponse, isLoading, error } = useQuery({
     queryKey: ["employees"],
     queryFn: () => getEmployees(),
   });
   const employees = employeesResponse?.items ?? [];
-  const canManage = currentUser?.role_codes.some((code) => ["ADMIN", "ASSET_MANAGER", "OPERATOR"].includes(code)) ?? false;
+  const canManage =
+    currentUser?.role_codes.some((code) => ["ADMIN", "ASSET_MANAGER", "OPERATOR"].includes(code)) ?? false;
 
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
-  const [form, setForm] = useState(initialForm);
 
   const activeEmployees = useMemo(() => employees.filter((employee) => employee.is_active).length, [employees]);
 
   const resetForm = () => {
     setEditingEmployeeId(null);
-    setForm(initialForm);
+    form.reset(defaultValues);
   };
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: EmployeeFormValues) => {
       const payload = {
-        employee_code: form.employee_code,
-        full_name: form.full_name,
-        email: form.email || null,
-        department_id: form.department_id ? Number(form.department_id) : null,
-        is_active: form.is_active,
-        notes: form.notes || null,
+        employee_code: values.employee_code,
+        full_name: values.full_name,
+        email: values.email || null,
+        department_id: values.department_id ? Number(values.department_id) : null,
+        is_active: values.is_active,
+        notes: values.notes || null,
       };
-      return editingEmployeeId ? updateEmployee(editingEmployeeId, payload) : createEmployee(payload);
+      return editingEmployeeId
+        ? updateEmployee(editingEmployeeId, payload)
+        : createEmployee(payload);
     },
     onSuccess: async () => {
       resetForm();
@@ -70,7 +87,7 @@ export function EmployeeManagementPage() {
 
   const startEdit = (employee: EmployeeListItem) => {
     setEditingEmployeeId(employee.id);
-    setForm({
+    form.reset({
       employee_code: employee.employee_code,
       full_name: employee.full_name,
       email: employee.email ?? "",
@@ -80,17 +97,24 @@ export function EmployeeManagementPage() {
     });
   };
 
+  const onSubmit = (values: EmployeeFormValues) => {
+    mutation.mutate(values);
+  };
+
   if (!canManage) {
     return (
-      <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-amber-900">
-        <h2 className="text-2xl font-semibold">Anagrafica persone</h2>
-        <p className="mt-2 text-sm">Questa sezione e disponibile solo per chi gestisce operativamente gli asset.</p>
-      </div>
+      <Alert>
+        <AlertCircle />
+        <AlertTitle>Anagrafica persone</AlertTitle>
+        <AlertDescription>
+          Questa sezione e disponibile solo per chi gestisce operativamente gli asset.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Assegnatari"
         title="Persone aziendali"
@@ -98,127 +122,196 @@ export function EmployeeManagementPage() {
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_1.85fr]">
-        <section className="app-panel">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">{editingEmployeeId ? "Modifica persona" : "Nuova persona"}</h3>
-            {editingEmployeeId && (
-              <button type="button" onClick={resetForm} className="text-sm font-medium text-brand-700">
-                Annulla
-              </button>
-            )}
-          </div>
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div>
-                <label htmlFor="employee-code" className="mb-2 block text-sm font-medium text-slate-700">Codice Dipendente</label>
-              <Input
-                id="employee-code"
-                aria-label="Codice dipendente"
-                value={form.employee_code}
-                onChange={(event) => setForm((current) => ({ ...current, employee_code: event.target.value }))}
-                placeholder="Codice dipendente"
-              />
+        <Panel title={editingEmployeeId ? "Modifica persona" : "Nuova persona"} eyebrow="Directory interna">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
+              <div className="flex items-center justify-end">
+                {editingEmployeeId ? (
+                  <Button type="button" variant="ghost" onClick={resetForm}>
+                    Annulla
+                  </Button>
+                ) : null}
               </div>
-              <div>
-                <label htmlFor="employee-department" className="mb-2 block text-sm font-medium text-slate-700">Dipartimento</label>
-              <SelectField
-                value={form.department_id}
-                onValueChange={(value) => setForm((current) => ({ ...current, department_id: value }))}
-                placeholder="Dipartimento"
-                options={departments.map((department) => ({ value: String(department.id), label: department.name }))}
-              />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="employee-full-name" className="mb-2 block text-sm font-medium text-slate-700">Nome E Cognome</label>
-            <Input
-              id="employee-full-name"
-              aria-label="Nome e cognome"
-              value={form.full_name}
-              onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
-              placeholder="Nome e cognome"
-            />
-            </div>
-            <div>
-              <label htmlFor="employee-email" className="mb-2 block text-sm font-medium text-slate-700">Email</label>
-            <Input
-              id="employee-email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              spellCheck={false}
-              aria-label="Email"
-              value={form.email}
-              onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-              placeholder="Email"
-            />
-            </div>
-            <div>
-              <label htmlFor="employee-notes" className="mb-2 block text-sm font-medium text-slate-700">Note</label>
-            <Textarea
-              id="employee-notes"
-              aria-label="Note"
-              value={form.notes}
-              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              placeholder="Note"
-              className="min-h-28"
-            />
-            </div>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.is_active}
-                onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
-              />
-              Persona attiva
-            </label>
-            <Button
-              type="button"
-              onClick={() => mutation.mutate()}
-              disabled={mutation.isPending || !form.employee_code || !form.full_name}
-            >
-              {editingEmployeeId ? "Salva persona" : "Crea persona"}
-            </Button>
-            {mutation.error && <p className="text-sm text-rose-600" aria-live="polite">{mutation.error.message}</p>}
-          </div>
-        </section>
 
-        <section className="app-panel">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">Assegnatari censiti</h3>
-            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
-              {activeEmployees} attivi su {employees.length}
-            </span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {employees.map((employee) => (
-              <div key={employee.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {employee.full_name} <span className="font-normal text-slate-500">({employee.employee_code})</span>
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {[employee.email, departments.find((department) => department.id === employee.department_id)?.name]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                  {employee.notes && <p className="mt-2 text-xs text-slate-500">{employee.notes}</p>}
-                </div>
-                <Button
-                  type="button"
-                  onClick={() => startEdit(employee)}
-                  variant="secondary"
-                >
-                  Modifica
-                </Button>
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="employee_code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Codice dipendente</FormLabel>
+                      <FormControl>
+                        <Input {...field} id="employee-code" placeholder="Codice dipendente" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormSelectField
+                  control={form.control}
+                  name="department_id"
+                  label="Dipartimento"
+                  placeholder="Nessun dipartimento"
+                  options={departments.map((department) => ({
+                    value: String(department.id),
+                    label: department.name,
+                  }))}
+                />
               </div>
-            ))}
-            {!employees.length && !isLoading && <p className="text-sm text-slate-500">Nessuna persona disponibile.</p>}
-            {error && <p className="text-sm text-rose-600">{error.message}</p>}
-            {isLoading && <p className="text-sm text-slate-500">Caricamento persone…</p>}
+
+              <FormField
+                control={form.control}
+                name="full_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome e cognome</FormLabel>
+                    <FormControl>
+                      <Input {...field} id="employee-full-name" placeholder="Nome e cognome" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        id="employee-email"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        spellCheck={false}
+                        placeholder="Email"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        id="employee-notes"
+                        placeholder="Note operative"
+                        className="min-h-28"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-3 rounded-md border border-border p-4">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(Boolean(checked))} />
+                    </FormControl>
+                    <FormLabel className="text-sm">Persona attiva</FormLabel>
+                  </FormItem>
+                )}
+              />
+
+              {mutation.error ? (
+                <Alert variant="destructive">
+                  <AlertCircle />
+                  <AlertTitle>Operazione non completata</AlertTitle>
+                  <AlertDescription>{mutation.error.message}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <Button type="submit" disabled={mutation.isPending} className="self-start">
+                {editingEmployeeId ? "Salva persona" : "Crea persona"}
+              </Button>
+            </form>
+          </Form>
+        </Panel>
+
+        <Panel title="Assegnatari censiti" eyebrow="Anagrafica" aria-busy={isLoading}>
+          <div className="flex items-center justify-between">
+            <Badge tone="neutral">
+              {activeEmployees} attivi su {employees.length}
+            </Badge>
           </div>
-        </section>
+
+          <div className="mt-4 flex flex-col gap-3">
+            {isLoading ? (
+              <>
+                <Skeleton className="h-24 rounded-md" />
+                <Skeleton className="h-24 rounded-md" />
+                <Skeleton className="h-24 rounded-md" />
+              </>
+            ) : null}
+
+            {!isLoading && error ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>Directory non disponibile</AlertTitle>
+                <AlertDescription>{error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {!isLoading && !error && !employees.length ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Users />
+                  </EmptyMedia>
+                  <EmptyTitle>Nessuna persona disponibile</EmptyTitle>
+                  <EmptyDescription>
+                    Crea il primo assegnatario per poter associare gli asset agli utenti interni.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : null}
+
+            {!isLoading && !error
+              ? employees.map((employee) => (
+                  <div
+                    key={employee.id}
+                    className="flex flex-col gap-3 rounded-md border border-border bg-muted px-4 py-4 lg:flex-row lg:items-center lg:justify-between"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {employee.full_name}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          ({employee.employee_code})
+                        </span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {[employee.email, departments.find((department) => department.id === employee.department_id)?.name]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                      {employee.notes ? (
+                        <p className="text-xs text-muted-foreground">{employee.notes}</p>
+                      ) : null}
+                    </div>
+                    <Button type="button" onClick={() => startEdit(employee)} variant="secondary">
+                      Modifica
+                    </Button>
+                  </div>
+                ))
+              : null}
+          </div>
+        </Panel>
       </div>
     </div>
   );
 }
+

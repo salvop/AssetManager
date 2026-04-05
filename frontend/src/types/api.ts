@@ -276,6 +276,15 @@ export type SoftwareLicenseDetail = SoftwareLicenseListItem & {
 
 export type SoftwareLicenseListResponse = {
   items: SoftwareLicenseListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  summary: {
+    total_licenses: number;
+    active_assignments: number;
+    available_quantity: number;
+    expiring_licenses: number;
+  };
 };
 
 export type SoftwareLicensePayload = {

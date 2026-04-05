@@ -1,20 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { getAppSettings, updateAppSettings } from "@/features/users/api/preferences";
-import { PageHeader } from "@/components/ui/page-header";
-import { SelectField } from "@/components/ui/select-field";
-import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
+import { getAppSettings, updateAppSettings } from "@/features/users/api/preferences";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { FormSelectField } from "@/components/ui/select-field";
+import { Skeleton } from "@/components/ui/skeleton";
+import { appSettingsFormSchema, type AppSettingsFormValues } from "@/features/settings/schemas/app-settings-form.schema";
+import { Textarea } from "@/components/ui/textarea";
 
-type SettingsFormState = {
-  org_name: string;
-  default_asset_status_on_create_id: string;
-  max_document_size_mb: string;
-  allowed_document_mime_types: string;
+const defaultValues: AppSettingsFormValues = {
+  org_name: "",
+  default_asset_status_on_create_id: "",
+  max_document_size_mb: "10",
+  allowed_document_mime_types: "",
 };
 
 export function AppSettingsPage() {
@@ -30,30 +38,28 @@ export function AppSettingsPage() {
     employees: false,
     users: false,
   });
+  const form = useForm<AppSettingsFormValues>({
+    resolver: zodResolver(appSettingsFormSchema),
+    defaultValues,
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["app-settings"],
     queryFn: getAppSettings,
   });
 
-  const [form, setForm] = useState<SettingsFormState>({
-    org_name: "",
-    default_asset_status_on_create_id: "",
-    max_document_size_mb: "10",
-    allowed_document_mime_types: "",
-  });
-
   useEffect(() => {
     if (!data) {
       return;
     }
-    setForm({
+
+    form.reset({
       org_name: data.org_name,
       default_asset_status_on_create_id: String(data.default_asset_status_on_create_id),
       max_document_size_mb: String(data.max_document_size_mb),
       allowed_document_mime_types: data.allowed_document_mime_types.join(", "),
     });
-  }, [data]);
+  }, [data, form]);
 
   const writableStatuses = useMemo(
     () => statuses.filter((status) => !["RETIRED", "DISPOSED"].includes(status.code ?? "")),
@@ -61,12 +67,12 @@ export function AppSettingsPage() {
   );
 
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: AppSettingsFormValues) =>
       updateAppSettings({
-        org_name: form.org_name,
-        default_asset_status_on_create_id: Number(form.default_asset_status_on_create_id),
-        max_document_size_mb: Number(form.max_document_size_mb),
-        allowed_document_mime_types: form.allowed_document_mime_types
+        org_name: values.org_name,
+        default_asset_status_on_create_id: Number(values.default_asset_status_on_create_id),
+        max_document_size_mb: Number(values.max_document_size_mb),
+        allowed_document_mime_types: values.allowed_document_mime_types
           .split(",")
           .map((item) => item.trim())
           .filter(Boolean),
@@ -80,80 +86,127 @@ export function AppSettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-amber-900">
-        <h2 className="text-2xl font-semibold">Impostazioni applicazione</h2>
-        <p className="mt-2 text-sm">Questa sezione e disponibile solo per gli amministratori di sistema.</p>
-      </div>
+      <Alert>
+        <AlertCircle />
+        <AlertTitle>Impostazioni applicazione</AlertTitle>
+        <AlertDescription>
+          Questa sezione e disponibile solo per gli amministratori di sistema.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Amministrazione"
         title="Impostazioni applicazione"
         description="Configura valori globali dell'istanza per creazione asset e documenti."
       />
 
-      <section className="app-panel max-w-3xl space-y-4">
-        <div className="flex flex-col gap-2 text-sm text-slate-700">
-          <span>Nome organizzazione</span>
-          <Input
-            value={form.org_name}
-            onChange={(event) => setForm((current) => ({ ...current, org_name: event.target.value }))}
-            placeholder="OpsAsset"
-          />
-        </div>
-
-        <div className="grid gap-x-4 gap-y-6 md:grid-cols-2">
-          <div className="flex flex-col gap-2 text-sm text-slate-700">
-            <span>Stato default alla creazione asset</span>
-            <SelectField
-              value={form.default_asset_status_on_create_id}
-              onValueChange={(value) => setForm((current) => ({ ...current, default_asset_status_on_create_id: value }))}
-              placeholder="Seleziona stato"
-              options={writableStatuses.map((status) => ({ value: String(status.id), label: status.name }))}
+      <Panel title="Configurazione istanza" eyebrow="Valori globali" className="max-w-3xl">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="flex flex-col gap-5">
+            <FormField
+              control={form.control}
+              name="org_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome organizzazione</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="OpsAsset" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="flex flex-col gap-2 text-sm text-slate-700">
-            <span>Dimensione max documenti (MB)</span>
-            <Input
-              type="number"
-              min={1}
-              max={100}
-              value={form.max_document_size_mb}
-              onChange={(event) => setForm((current) => ({ ...current, max_document_size_mb: event.target.value }))}
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormSelectField
+                control={form.control}
+                name="default_asset_status_on_create_id"
+                label="Stato default alla creazione asset"
+                placeholder="Seleziona stato"
+                options={writableStatuses.map((status) => ({
+                  value: String(status.id),
+                  label: status.name,
+                }))}
+              />
+
+              <FormField
+                control={form.control}
+                name="max_document_size_mb"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dimensione max documenti (MB)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min={1} max={100} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="allowed_document_mime_types"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>MIME types consentiti</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      className="min-h-24 resize-y"
+                      placeholder="application/pdf, image/png, image/jpeg"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-2 text-sm text-slate-700">
-          <span>MIME types consentiti (separati da virgola)</span>
-          <Textarea
-            className="min-h-24 resize-y"
-            value={form.allowed_document_mime_types}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, allowed_document_mime_types: event.target.value }))
-            }
-            placeholder="application/pdf, image/png, image/jpeg"
-          />
-        </div>
+            {isLoading ? (
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-11 rounded-md" />
+                <Skeleton className="h-11 rounded-md" />
+                <Skeleton className="h-24 rounded-md" />
+              </div>
+            ) : null}
 
-        <Button
-          type="button"
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || isLoading}
-          className="rounded-full"
-        >
-          Salva impostazioni
-        </Button>
+            {error ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>Impostazioni non disponibili</AlertTitle>
+                <AlertDescription>{String(error.message)}</AlertDescription>
+              </Alert>
+            ) : null}
 
-        {isLoading && <p className="text-sm text-slate-500" aria-live="polite">Caricamento impostazioni…</p>}
-        {error && <p className="text-sm text-rose-600">{String(error.message)}</p>}
-        {mutation.error && <p className="text-sm text-rose-600">{mutation.error.message}</p>}
-        {mutation.isSuccess && <p className="text-sm text-emerald-700">Impostazioni aggiornate.</p>}
-      </section>
+            {mutation.error ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>Salvataggio non completato</AlertTitle>
+                <AlertDescription>{mutation.error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {mutation.isSuccess ? (
+              <Alert>
+                <CheckCircle2 />
+                <AlertTitle>Impostazioni aggiornate</AlertTitle>
+                <AlertDescription>I valori globali dell'istanza sono stati salvati.</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={mutation.isPending || isLoading}>
+                Salva impostazioni
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </Panel>
     </div>
   );
 }
+

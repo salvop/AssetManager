@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from typing import Literal
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from app.schemas.software import (
     SoftwareLicenseEventResponse,
     SoftwareLicenseListItemResponse,
     SoftwareLicenseListResponse,
+    SoftwareLicenseListSummaryResponse,
     SoftwareLicenseRevokeRequest,
     SoftwareLicenseUpdateRequest,
 )
@@ -31,9 +33,30 @@ class SoftwareLicenseService:
         self.user_repository = UserRepository(db)
         self.asset_repository = AssetRepository(db)
 
-    def list_licenses(self, *, search: str | None = None) -> SoftwareLicenseListResponse:
-        items = self.repository.list_licenses(search=search)
-        return SoftwareLicenseListResponse(items=[self._build_list_item(item) for item in items])
+    def list_licenses(
+        self,
+        *,
+        search: str | None = None,
+        page: int,
+        page_size: int,
+        sort_by: Literal["product_name", "license_type", "expiry_date"] = "product_name",
+        sort_dir: Literal["asc", "desc"] = "asc",
+    ) -> SoftwareLicenseListResponse:
+        items, total = self.repository.list_licenses_paginated(
+            search=search,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+        )
+        matched_items = self.repository.list_licenses(search=search)
+        return SoftwareLicenseListResponse(
+            items=[self._build_list_item(item) for item in items],
+            total=total,
+            page=page,
+            page_size=page_size,
+            summary=self._build_list_summary(matched_items),
+        )
 
     def get_license(self, license_id: int) -> SoftwareLicenseDetailResponse:
         license_item = require_resource(self.repository.get_by_id(license_id), "Software license not found")
@@ -216,6 +239,26 @@ class SoftwareLicenseService:
             vendor=self._optional_vendor_reference(license_item.vendor_id),
             assignments=[self._build_assignment_response(item) for item in assignments],
             events=[self._build_event_response(item) for item in events],
+        )
+
+    def _build_list_summary(self, license_items: list[SoftwareLicense]) -> SoftwareLicenseListSummaryResponse:
+        total_licenses = len(license_items)
+        active_assignments = 0
+        available_quantity = 0
+        expiring_licenses = 0
+
+        for license_item in license_items:
+            current_active_assignments = self.repository.count_active_assignments(license_item.id)
+            active_assignments += current_active_assignments
+            available_quantity += license_item.purchased_quantity - current_active_assignments
+            if license_item.expiry_date is not None:
+                expiring_licenses += 1
+
+        return SoftwareLicenseListSummaryResponse(
+            total_licenses=total_licenses,
+            active_assignments=active_assignments,
+            available_quantity=available_quantity,
+            expiring_licenses=expiring_licenses,
         )
 
     def _build_assignment_response(

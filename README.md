@@ -28,6 +28,7 @@ It does **not** aim to deliver procurement, contracts, software license manageme
 This repository should be read with these documents together:
 - `AGENTS.md` → rules for Codex and coding-agent execution
 - `implementation.md` → product scope, architecture, API, workflow contract
+- `docs/UI_RULES.md` → frontend visual consistency and component usage rules
 - `README.md` → human-facing project overview and local setup
 
 ### Document precedence
@@ -259,6 +260,17 @@ cd frontend
 npm install
 npm run dev
 ```
+
+Optional frontend env:
+- `VITE_HELPDESK_EMAIL` → support email used by the login "Problemi di accesso?" link
+
+Example `frontend/.env`:
+
+```env
+VITE_HELPDESK_EMAIL=support@fidesspa.eu
+```
+
+Note: if `localStorage["opsasset.login.supportEmail"]` is set in the browser, that preference overrides `VITE_HELPDESK_EMAIL`.
 
 ---
 

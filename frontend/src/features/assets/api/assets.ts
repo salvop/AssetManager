@@ -22,6 +22,8 @@ type AssetListParams = {
   vendorId?: number;
   page?: number;
   pageSize?: number;
+  sortBy?: "asset_tag" | "name" | "created_at" | "updated_at";
+  sortDir?: "asc" | "desc";
 };
 
 export function getAssets(params: AssetListParams = {}): Promise<AssetListResponse> {
@@ -36,6 +38,8 @@ export function getAssets(params: AssetListParams = {}): Promise<AssetListRespon
   if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
   searchParams.set("page", String(params.page ?? 1));
   searchParams.set("page_size", String(params.pageSize ?? 20));
+  if (params.sortBy) searchParams.set("sort_by", params.sortBy);
+  if (params.sortDir) searchParams.set("sort_dir", params.sortDir);
   return apiRequest<AssetListResponse>(`/assets?${searchParams.toString()}`);
 }
 
@@ -126,6 +130,8 @@ export async function exportAssetsCsv(params: AssetListParams = {}) {
   if (params.departmentId) searchParams.set("department_id", String(params.departmentId));
   if (params.assignedEmployeeId) searchParams.set("assigned_employee_id", String(params.assignedEmployeeId));
   if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
+  if (params.sortBy) searchParams.set("sort_by", params.sortBy);
+  if (params.sortDir) searchParams.set("sort_dir", params.sortDir);
   const query = searchParams.toString();
   const { blob, filename } = await apiDownload(`/assets/export/csv${query ? `?${query}` : ""}`);
   const url = window.URL.createObjectURL(blob);
@@ -148,6 +154,8 @@ export async function exportAssetsXlsx(params: AssetListParams = {}) {
   if (params.departmentId) searchParams.set("department_id", String(params.departmentId));
   if (params.assignedEmployeeId) searchParams.set("assigned_employee_id", String(params.assignedEmployeeId));
   if (params.vendorId) searchParams.set("vendor_id", String(params.vendorId));
+  if (params.sortBy) searchParams.set("sort_by", params.sortBy);
+  if (params.sortDir) searchParams.set("sort_dir", params.sortDir);
   const query = searchParams.toString();
   const { blob, filename } = await apiDownload(`/assets/export/xlsx${query ? `?${query}` : ""}`);
   const url = window.URL.createObjectURL(blob);

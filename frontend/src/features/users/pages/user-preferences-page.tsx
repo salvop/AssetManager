@@ -1,14 +1,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { PageHeader } from "@/components/layout/page-header";
+import { Panel } from "@/components/layout/panel";
 import { getMyPreferences, updateMyPreferences } from "@/features/users/api/preferences";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { ControlledSelectField } from "@/components/ui/select-field";
+import { FormSelectField } from "@/components/ui/select-field";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const timezoneOptions = [
   "Europe/Rome",
@@ -80,9 +85,7 @@ export function UserPreferencesPage() {
           : defaultPreferences.default_page_size,
     };
 
-    form.reset({
-      ...normalizedValues,
-    });
+    form.reset(normalizedValues);
   }, [data, form]);
 
   const mutation = useMutation({
@@ -101,44 +104,40 @@ export function UserPreferencesPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Profilo utente"
         title="Preferenze"
         description="Imposta formato date, lingua e opzioni di visualizzazione personali."
       />
 
-      <section className="app-panel max-w-3xl space-y-4">
-        <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="space-y-4">
-          <div className="grid gap-x-4 gap-y-6 md:grid-cols-2">
-            <div className="flex flex-col gap-2 text-sm text-slate-700">
-              <span>Lingua</span>
-              <ControlledSelectField
+      <Panel title="Preferenze personali" eyebrow="Profilo" className="max-w-3xl">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="flex flex-col gap-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormSelectField
                 control={form.control}
                 name="language"
+                label="Lingua"
                 placeholder="Seleziona lingua"
                 options={[
                   { value: "it-IT", label: "Italiano (it-IT)" },
                   { value: "en-US", label: "English (en-US)" },
                 ]}
               />
-            </div>
 
-            <div className="flex flex-col gap-2 text-sm text-slate-700">
-              <span>Timezone</span>
-              <ControlledSelectField
+              <FormSelectField
                 control={form.control}
                 name="timezone"
+                label="Timezone"
                 placeholder="Seleziona timezone"
                 options={timezoneOptions.map((timezone) => ({ value: timezone, label: timezone }))}
               />
-            </div>
 
-            <div className="flex flex-col gap-2 text-sm text-slate-700">
-              <span>Formato data</span>
-              <ControlledSelectField
+              <FormSelectField
                 control={form.control}
                 name="date_format"
+                label="Formato data"
                 placeholder="Seleziona formato data"
                 options={[
                   { value: "DD/MM/YYYY", label: "DD/MM/YYYY" },
@@ -146,37 +145,74 @@ export function UserPreferencesPage() {
                   { value: "MM/DD/YYYY", label: "MM/DD/YYYY" },
                 ]}
               />
-            </div>
 
-            <div className="flex flex-col gap-2 text-sm text-slate-700">
-              <span>Densita tabelle</span>
-              <ControlledSelectField
+              <FormSelectField
                 control={form.control}
                 name="table_density"
+                label="Densita tabelle"
                 placeholder="Seleziona densita"
                 options={[
                   { value: "comfortable", label: "Comfortable" },
                   { value: "compact", label: "Compact" },
                 ]}
               />
+
+              <FormField
+                control={form.control}
+                name="default_page_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Righe per pagina</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={10} max={200} {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <div className="flex flex-col gap-2 text-sm text-slate-700">
-              <span>Righe per pagina</span>
-              <Input type="number" min={10} max={200} {...form.register("default_page_size")} />
+            {isLoading ? (
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-11 rounded-md" />
+                <Skeleton className="h-11 rounded-md" />
+                <Skeleton className="h-11 rounded-md" />
+              </div>
+            ) : null}
+
+            {error ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>Preferenze non disponibili</AlertTitle>
+                <AlertDescription>{String(error.message)}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {mutation.error ? (
+              <Alert variant="destructive">
+                <AlertCircle />
+                <AlertTitle>Salvataggio non completato</AlertTitle>
+                <AlertDescription>{mutation.error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {mutation.isSuccess ? (
+              <Alert>
+                <CheckCircle2 />
+                <AlertTitle>Preferenze aggiornate</AlertTitle>
+                <AlertDescription>Le impostazioni personali sono state salvate.</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={mutation.isPending || isLoading}>
+                Salva preferenze
+              </Button>
             </div>
-          </div>
-
-          <Button type="submit" disabled={mutation.isPending || isLoading}>
-            Salva preferenze
-          </Button>
-        </form>
-
-        {isLoading && <p className="text-sm text-slate-500" aria-live="polite">Caricamento preferenze…</p>}
-        {error && <p className="text-sm text-rose-600">{String(error.message)}</p>}
-        {mutation.error && <p className="text-sm text-rose-600">{mutation.error.message}</p>}
-        {mutation.isSuccess && <p className="text-sm text-emerald-700">Preferenze aggiornate.</p>}
-      </section>
+          </form>
+        </Form>
+      </Panel>
     </div>
   );
 }
+
