@@ -5,7 +5,7 @@ import { getMaintenanceTicket, getMaintenanceTickets } from "../api/maintenance"
 export function useMaintenanceTickets() {
   return useQuery({
     queryKey: ["maintenance-tickets"],
-    queryFn: getMaintenanceTickets,
+    queryFn: () => getMaintenanceTickets(),
   });
 }
 

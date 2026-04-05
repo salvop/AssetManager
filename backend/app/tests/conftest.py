@@ -16,7 +16,8 @@ from app.models import assignment as assignment_models  # noqa: F401
 from app.models import employee as employee_models  # noqa: F401
 from app.models import lookup as lookup_models  # noqa: F401
 from app.models import maintenance as maintenance_models  # noqa: F401
-from app.models import software as software_models  # noqa: F401
+from app.models import preferences as preferences_models  # noqa: F401
+from app.models import request as request_models  # noqa: F401
 from app.models import user as user_models  # noqa: F401
 from app.models.asset import Asset
 from app.models.employee import Employee

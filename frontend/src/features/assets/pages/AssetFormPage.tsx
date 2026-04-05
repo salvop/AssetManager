@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
+import { PageHeader } from "../../../components/ui/page-header";
+import { Panel } from "../../../components/ui/panel";
 import { createAsset, updateAsset } from "../../../api/assets";
 import { useLookupsBundle } from "../../../hooks/useLookups";
 import { useAsset } from "../hooks/useAssets";
@@ -151,21 +153,20 @@ export function AssetFormPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">
-            {isEditMode ? "Aggiornamento asset" : "Nuovo inserimento"}
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold">{isEditMode ? "Modifica asset" : "Crea asset"}</h2>
-        </div>
-        <Link to="/assets" className="text-sm font-medium text-brand-700">
-          Torna alla lista
-        </Link>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader
+        eyebrow={isEditMode ? "Aggiornamento asset" : "Nuovo inserimento"}
+        title={isEditMode ? "Modifica asset" : "Crea asset"}
+        description="Compila i campi anagrafici e lifecycle necessari per la gestione operativa."
+        actions={(
+          <Link to="/assets" className="text-sm font-medium text-brand-700">
+            Torna alla lista
+          </Link>
+        )}
+      />
 
       <form onSubmit={form.handleSubmit((values) => mutation.mutate(values))} className="space-y-6">
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <Panel>
           <div className="grid gap-4 md:grid-cols-2">
             {!isEditMode && (
               <Field label="Tag asset" error={form.formState.errors.asset_tag?.message}>
@@ -275,7 +276,7 @@ export function AssetFormPage() {
           <Field label="Descrizione" className="mt-4">
             <textarea {...form.register("description")} className={`${inputClassName} min-h-28`} />
           </Field>
-        </section>
+        </Panel>
 
         <div className="flex items-center justify-between">
           <div>

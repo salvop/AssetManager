@@ -13,6 +13,9 @@ class UserListItemResponse(BaseModel):
 
 class UserListResponse(BaseModel):
     items: list[UserListItemResponse]
+    total: int
+    page: int
+    page_size: int
 
 
 class UserCreateRequest(BaseModel):

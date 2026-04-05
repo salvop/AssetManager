@@ -46,8 +46,8 @@ export function useLookupsBundle(options?: LookupBundleOptions) {
       { queryKey: ["asset-categories"], queryFn: getAssetCategories, enabled: resolvedOptions.categories, staleTime: LOOKUP_STALE_TIME_MS },
       { queryKey: ["asset-models"], queryFn: getAssetModels, enabled: resolvedOptions.models, staleTime: LOOKUP_STALE_TIME_MS },
       { queryKey: ["asset-statuses"], queryFn: getAssetStatuses, enabled: resolvedOptions.statuses, staleTime: LOOKUP_STALE_TIME_MS },
-      { queryKey: ["employees"], queryFn: getEmployees, enabled: resolvedOptions.employees, staleTime: LOOKUP_STALE_TIME_MS },
-      { queryKey: ["users"], queryFn: getUsers, enabled: resolvedOptions.users, staleTime: LOOKUP_STALE_TIME_MS },
+      { queryKey: ["employees"], queryFn: () => getEmployees(), enabled: resolvedOptions.employees, staleTime: LOOKUP_STALE_TIME_MS },
+      { queryKey: ["users"], queryFn: () => getUsers(), enabled: resolvedOptions.users, staleTime: LOOKUP_STALE_TIME_MS },
     ],
   });
 

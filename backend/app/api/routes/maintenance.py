@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -19,8 +19,10 @@ router = APIRouter()
 def list_tickets(
     db: Session = Depends(get_db),
     current_user=Depends(require_roles("ADMIN", "ASSET_MANAGER", "OPERATOR", "VIEWER")),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
 ) -> MaintenanceTicketListResponse:
-    return MaintenanceTicketService(db).list_tickets()
+    return MaintenanceTicketService(db).list_tickets(page=page, page_size=page_size)
 
 
 @router.get("/by-asset/{asset_id}", response_model=MaintenanceTicketListResponse)
@@ -28,8 +30,10 @@ def list_tickets_for_asset(
     asset_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(require_roles("ADMIN", "ASSET_MANAGER", "OPERATOR", "VIEWER")),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
 ) -> MaintenanceTicketListResponse:
-    return MaintenanceTicketService(db).list_for_asset(asset_id)
+    return MaintenanceTicketService(db).list_for_asset(asset_id, page=page, page_size=page_size)
 
 
 @router.post("", response_model=MaintenanceTicketResponse)

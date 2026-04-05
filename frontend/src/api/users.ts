@@ -1,8 +1,16 @@
 import { apiRequest } from "./http";
 import type { LookupListResponse, UserListItem, UserListResponse, UserPayload } from "../types/api";
 
-export function getUsers() {
-  return apiRequest<UserListResponse>("/users");
+type UserListParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+export function getUsers(params: UserListParams = {}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("page_size", String(params.pageSize ?? 100));
+  return apiRequest<UserListResponse>(`/users?${searchParams.toString()}`);
 }
 
 export function getUser(userId: number) {

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { createEmployee, getEmployees, updateEmployee } from "../api/employees";
+import { PageHeader } from "../components/ui/page-header";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useLookupsBundle } from "../hooks/useLookups";
 import type { EmployeeListItem } from "../types/api";
@@ -33,7 +34,7 @@ export function EmployeeManagementPage() {
   });
   const { data: employeesResponse, isLoading, error } = useQuery({
     queryKey: ["employees"],
-    queryFn: getEmployees,
+    queryFn: () => getEmployees(),
   });
   const employees = employeesResponse?.items ?? [];
   const canManage = currentUser?.role_codes.some((code) => ["ADMIN", "ASSET_MANAGER", "OPERATOR"].includes(code)) ?? false;
@@ -89,13 +90,11 @@ export function EmployeeManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200 pb-5">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Assegnatari</p>
-        <h2 className="mt-2 text-3xl font-semibold">Persone aziendali</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          Qui gestisci gli assegnatari reali degli asset, separati dagli account che accedono ad Asset Manager.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Assegnatari"
+        title="Persone aziendali"
+        description="Qui gestisci gli assegnatari reali degli asset, separati dagli account che accedono ad Asset Manager."
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_1.85fr]">
         <section className="app-panel">

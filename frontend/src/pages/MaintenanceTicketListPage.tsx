@@ -3,12 +3,22 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { createMaintenanceTicket } from "../api/maintenance";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { PageHeader } from "../components/ui/page-header";
+import { Panel } from "../components/ui/panel";
+import { Select } from "../components/ui/select";
+import { Textarea } from "../components/ui/textarea";
 import { useAssets } from "../hooks/useAssets";
 import { useLookupsBundle } from "../hooks/useLookups";
 import { useMaintenanceTickets } from "../hooks/useMaintenance";
 
-const inputClassName =
-  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100";
+const ticketStatusTone: Record<string, "warning" | "info" | "success" | "neutral"> = {
+  OPEN: "warning",
+  IN_PROGRESS: "info",
+  CLOSED: "success",
+};
 
 export function MaintenanceTicketListPage() {
   const queryClient = useQueryClient();
@@ -49,100 +59,117 @@ export function MaintenanceTicketListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200 pb-5">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Manutenzione</p>
-        <h2 className="mt-2 text-3xl font-semibold">Ticket</h2>
-        <p className="mt-2 text-sm text-slate-500">Apri nuovi interventi e monitora lo stato delle attivita di supporto.</p>
-      </div>
+      <PageHeader
+        eyebrow="Manutenzione"
+        title="Ticket"
+        description="Apri nuovi interventi e monitora lo stato delle attivita di supporto."
+      />
 
-      <section className="app-panel">
-        <h3 className="text-lg font-semibold text-slate-900">Apri un nuovo ticket</h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <select value={assetId} onChange={(event) => setAssetId(event.target.value)} className={inputClassName}>
-            <option value="">Seleziona asset</option>
-            {(assetData?.items ?? []).map((asset) => (
-              <option key={asset.id} value={asset.id}>
-                {asset.asset_tag} - {asset.name}
-              </option>
-            ))}
-          </select>
-          <select value={vendorId} onChange={(event) => setVendorId(event.target.value)} className={inputClassName}>
-            <option value="">Nessun fornitore</option>
-            {vendors.map((vendor) => (
-              <option key={vendor.id} value={vendor.id}>
-                {vendor.name}
-              </option>
-            ))}
-          </select>
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Titolo ticket"
-            className={`${inputClassName} md:col-span-2`}
-          />
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Descrivi il problema o l'intervento richiesto"
-            className={`${inputClassName} min-h-28 md:col-span-2`}
-          />
+      <Panel eyebrow="Nuovo ticket" title="Apri un ticket di manutenzione" className="scroll-mt-6" aria-busy={createMutation.isPending}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label htmlFor="maintenance-list-asset" className="space-y-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Asset</span>
+            <Select id="maintenance-list-asset" name="maintenance-list-asset" value={assetId} onChange={(event) => setAssetId(event.target.value)}>
+              <option value="">Seleziona asset</option>
+              {(assetData?.items ?? []).map((asset) => (
+                <option key={asset.id} value={asset.id}>
+                  {asset.asset_tag} - {asset.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label htmlFor="maintenance-list-vendor" className="space-y-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Fornitore</span>
+            <Select id="maintenance-list-vendor" name="maintenance-list-vendor" value={vendorId} onChange={(event) => setVendorId(event.target.value)}>
+              <option value="">Nessun fornitore</option>
+              {vendors.map((vendor) => (
+                <option key={vendor.id} value={vendor.id}>
+                  {vendor.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label htmlFor="maintenance-list-title" className="space-y-2 md:col-span-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Titolo</span>
+            <Input
+              id="maintenance-list-title"
+              name="maintenance-list-title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Titolo ticket…"
+            />
+          </label>
+          <label htmlFor="maintenance-list-description" className="space-y-2 md:col-span-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Descrizione</span>
+            <Textarea
+              id="maintenance-list-description"
+              name="maintenance-list-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrivi il problema o l'intervento richiesto…"
+              className="min-h-28"
+            />
+          </label>
         </div>
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between gap-4">
           <div>
-            {createMutation.error && <p className="text-sm text-rose-600">{createMutation.error.message}</p>}
+            {createMutation.error && (
+              <p className="text-sm text-rose-600" aria-live="polite">
+                {createMutation.error.message}
+              </p>
+            )}
           </div>
-          <button
+          <Button
+            type="button"
             disabled={!assetId || !title || createMutation.isPending}
             onClick={() => createMutation.mutate()}
-            className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
           >
-            {createMutation.isPending ? "Apertura..." : "Apri ticket"}
-          </button>
+            {createMutation.isPending ? "Apertura…" : "Apri ticket"}
+          </Button>
         </div>
-      </section>
+      </Panel>
 
-      <section className="app-panel overflow-hidden p-0">
-        <div className="border-b border-slate-200/80 px-6 py-5">
-          <h3 className="text-lg font-semibold text-slate-900">Lista ticket</h3>
+      <Panel className="overflow-hidden p-0" eyebrow="Vista tabellare" title="Lista ticket" aria-busy={isLoading}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200">
+            <caption className="sr-only">Elenco ticket di manutenzione</caption>
+            <thead className="bg-slate-50">
+              <tr className="text-left text-xs uppercase tracking-[0.16em] text-slate-500">
+                <th scope="col" className="px-6 py-4 font-semibold">Titolo</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Asset</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Stato</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Aperto il</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {(data?.items ?? []).map((ticket) => (
+                <tr key={ticket.id} className="text-sm">
+                  <td className="px-6 py-4 font-medium text-slate-900">
+                    <Link to={`/maintenance-tickets/${ticket.id}`} className="text-brand-700 hover:underline focus-visible:underline">
+                      {ticket.title}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 text-slate-700">{ticket.asset.code ?? ticket.asset.name}</td>
+                  <td className="px-6 py-4 text-slate-700">
+                    <Badge tone={ticketStatusTone[ticket.status] ?? "neutral"}>{ticket.status}</Badge>
+                  </td>
+                  <td className="px-6 py-4 text-slate-700">{new Date(ticket.opened_at).toLocaleString()}</td>
+                </tr>
+              ))}
+              {!isLoading && (data?.items ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-slate-500">
+                    Nessun ticket di manutenzione disponibile.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr className="text-left text-xs uppercase tracking-[0.16em] text-slate-500">
-              <th className="px-6 py-4 font-semibold">Titolo</th>
-              <th className="px-6 py-4 font-semibold">Asset</th>
-              <th className="px-6 py-4 font-semibold">Stato</th>
-              <th className="px-6 py-4 font-semibold">Aperto il</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {(data?.items ?? []).map((ticket) => (
-              <tr key={ticket.id} className="text-sm">
-                <td className="px-6 py-4 font-medium text-slate-900">
-                  <Link to={`/maintenance-tickets/${ticket.id}`} className="text-brand-700 hover:underline">
-                    {ticket.title}
-                  </Link>
-                </td>
-                <td className="px-6 py-4 text-slate-700">{ticket.asset.code ?? ticket.asset.name}</td>
-                <td className="px-6 py-4 text-slate-700">
-                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                    {ticket.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-slate-700">{new Date(ticket.opened_at).toLocaleString()}</td>
-              </tr>
-            ))}
-            {!isLoading && (data?.items ?? []).length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-sm text-slate-500">
-                  Nessun ticket di manutenzione disponibile.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
-      {isLoading && <p className="text-sm text-slate-500">Caricamento ticket...</p>}
-      {error && <p className="text-sm text-rose-600">{error.message}</p>}
+      </Panel>
+
+      {isLoading && <p className="text-sm text-slate-500" aria-live="polite">Caricamento ticket…</p>}
+      {error && <p className="text-sm text-rose-600" aria-live="polite">{error.message}</p>}
     </div>
   );
 }

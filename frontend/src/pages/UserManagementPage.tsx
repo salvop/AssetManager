@@ -2,12 +2,15 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { createUser, getUserRoles, getUsers, updateUser } from "../api/users";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { PageHeader } from "../components/ui/page-header";
+import { Panel } from "../components/ui/panel";
+import { Select } from "../components/ui/select";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useLookupsBundle } from "../hooks/useLookups";
 import type { UserListItem } from "../types/api";
-
-const inputClassName =
-  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100";
 
 const initialForm = {
   username: "",
@@ -34,7 +37,7 @@ export function UserManagementPage() {
   });
   const { data: usersResponse, isLoading: isUsersLoading, error: usersError } = useQuery({
     queryKey: ["users"],
-    queryFn: getUsers,
+    queryFn: () => getUsers(),
   });
   const { data: rolesResponse, isLoading: isRolesLoading, error: rolesError } = useQuery({
     queryKey: ["user-roles"],
@@ -120,72 +123,93 @@ export function UserManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200 pb-5">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Amministrazione</p>
-        <h2 className="mt-2 text-3xl font-semibold">Utenti e ruoli</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          Crea e aggiorna gli utenti interni, assegna il dipartimento e definisci i ruoli applicativi.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Amministrazione"
+        title="Utenti & ruoli"
+        description="Crea e aggiorna gli utenti interni, assegna il dipartimento e definisci i ruoli applicativi."
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_1.85fr]">
-        <section className="app-panel">
+        <Panel title={editingUserId ? "Modifica utente" : "Nuovo utente"} eyebrow="Gestione account" aria-busy={mutation.isPending}>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">{editingUserId ? "Modifica utente" : "Nuovo utente"}</h3>
             {editingUserId && (
-              <button type="button" onClick={resetForm} className="text-sm font-medium text-brand-700">
+              <Button type="button" variant="ghost" onClick={resetForm}>
                 Annulla
-              </button>
+              </Button>
             )}
           </div>
 
           <div className="mt-4 space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
-              <input
-                value={form.username}
-                onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
-                placeholder="Username"
-                className={inputClassName}
-                disabled={Boolean(editingUserId)}
-              />
-              <select
-                value={form.department_id}
-                onChange={(event) => setForm((current) => ({ ...current, department_id: event.target.value }))}
-                className={inputClassName}
-              >
-                <option value="">Dipartimento</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </select>
+              <label htmlFor="user-form-username" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Username</span>
+                <Input
+                  id="user-form-username"
+                  name="user-form-username"
+                  value={form.username}
+                  onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
+                  placeholder="Username…"
+                  disabled={Boolean(editingUserId)}
+                />
+              </label>
+              <label htmlFor="user-form-department" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Dipartimento</span>
+                <Select
+                  id="user-form-department"
+                  name="user-form-department"
+                  value={form.department_id}
+                  onChange={(event) => setForm((current) => ({ ...current, department_id: event.target.value }))}
+                >
+                  <option value="">Nessun dipartimento</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
             </div>
 
-            <input
-              value={form.full_name}
-              onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
-              placeholder="Nome e cognome"
-              className={inputClassName}
-            />
+            <label htmlFor="user-form-full-name" className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Nome completo</span>
+              <Input
+                id="user-form-full-name"
+                name="user-form-full-name"
+                value={form.full_name}
+                onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
+                placeholder="Nome e cognome…"
+              />
+            </label>
 
-            <input
-              value={form.email}
-              onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-              placeholder="Email"
-              className={inputClassName}
-            />
+            <label htmlFor="user-form-email" className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Email</span>
+              <Input
+                id="user-form-email"
+                name="user-form-email"
+                type="email"
+                autoComplete="email"
+                spellCheck={false}
+                value={form.email}
+                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                placeholder="Email…"
+              />
+            </label>
 
-            <input
-              type="password"
-              value={form.password}
-              onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-              placeholder={editingUserId ? "Nuova password opzionale" : "Password iniziale"}
-              className={inputClassName}
-            />
+            <label htmlFor="user-form-password" className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Password</span>
+              <Input
+                id="user-form-password"
+                name="user-form-password"
+                type="password"
+                value={form.password}
+                onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                placeholder={editingUserId ? "Nuova password opzionale…" : "Password iniziale…"}
+              />
+            </label>
 
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label htmlFor="user-form-active" className="flex items-center gap-2 text-sm text-slate-700">
               <input
+                id="user-form-active"
                 type="checkbox"
                 checked={form.is_active}
                 onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
@@ -209,7 +233,7 @@ export function UserManagementPage() {
               </div>
             </div>
 
-            <button
+            <Button
               type="button"
               onClick={() => mutation.mutate()}
               disabled={
@@ -218,21 +242,19 @@ export function UserManagementPage() {
                 !form.role_codes.length ||
                 (!editingUserId && (!form.username || !form.password))
               }
-              className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
             >
               {editingUserId ? "Salva utente" : "Crea utente"}
-            </button>
+            </Button>
 
-            {mutation.error && <p className="text-sm text-rose-600">{mutation.error.message}</p>}
+            {mutation.error && <p className="text-sm text-rose-600" aria-live="polite">{mutation.error.message}</p>}
           </div>
-        </section>
+        </Panel>
 
-        <section className="app-panel">
+        <Panel title="Utenti interni" eyebrow="Directory" aria-busy={isUsersLoading || isRolesLoading}>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">Utenti interni</h3>
-            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
+            <Badge tone="neutral" className="bg-slate-950 text-white">
               {activeUsers} attivi su {users.length}
-            </span>
+            </Badge>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -251,20 +273,20 @@ export function UserManagementPage() {
                     {user.is_active === false ? "Disattivato" : "Attivo"}
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => startEdit(user)}
-                  className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                 >
                   Modifica
-                </button>
+                </Button>
               </div>
             ))}
             {!users.length && !isUsersLoading && <p className="text-sm text-slate-500">Nessun utente disponibile.</p>}
-            {(usersError || rolesError) && <p className="text-sm text-rose-600">{String(usersError?.message || rolesError?.message)}</p>}
-            {(isUsersLoading || isRolesLoading) && <p className="text-sm text-slate-500">Caricamento utenti e ruoli...</p>}
+            {(usersError || rolesError) && <p className="text-sm text-rose-600" aria-live="polite">{String(usersError?.message || rolesError?.message)}</p>}
+            {(isUsersLoading || isRolesLoading) && <p className="text-sm text-slate-500" aria-live="polite">Caricamento utenti e ruoli…</p>}
           </div>
-        </section>
+        </Panel>
       </div>
     </div>
   );

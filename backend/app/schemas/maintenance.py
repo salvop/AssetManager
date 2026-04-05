@@ -36,3 +36,6 @@ class MaintenanceTicketResponse(BaseModel):
 
 class MaintenanceTicketListResponse(BaseModel):
     items: list[MaintenanceTicketResponse]
+    total: int
+    page: int
+    page_size: int

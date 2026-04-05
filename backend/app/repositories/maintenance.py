@@ -25,7 +25,30 @@ class MaintenanceTicketRepository:
     def list_tickets(self) -> list[MaintenanceTicket]:
         return self.db.scalars(select(MaintenanceTicket).order_by(MaintenanceTicket.opened_at.desc())).all()
 
+    def list_tickets_paginated(self, *, page: int, page_size: int) -> tuple[list[MaintenanceTicket], int]:
+        total = self.db.scalar(select(func.count()).select_from(MaintenanceTicket)) or 0
+        statement = (
+            select(MaintenanceTicket)
+            .order_by(MaintenanceTicket.opened_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return self.db.scalars(statement).all(), total
+
     def list_for_asset(self, asset_id: int) -> list[MaintenanceTicket]:
         return self.db.scalars(
             select(MaintenanceTicket).where(MaintenanceTicket.asset_id == asset_id).order_by(MaintenanceTicket.opened_at.desc())
         ).all()
+
+    def list_for_asset_paginated(self, *, asset_id: int, page: int, page_size: int) -> tuple[list[MaintenanceTicket], int]:
+        total = self.db.scalar(
+            select(func.count()).select_from(MaintenanceTicket).where(MaintenanceTicket.asset_id == asset_id)
+        ) or 0
+        statement = (
+            select(MaintenanceTicket)
+            .where(MaintenanceTicket.asset_id == asset_id)
+            .order_by(MaintenanceTicket.opened_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return self.db.scalars(statement).all(), total

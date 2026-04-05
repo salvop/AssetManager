@@ -226,6 +226,16 @@ def test_viewer_cannot_create_user(client: TestClient, seeded_db: Session, auth_
     assert response.status_code == 403
 
 
+def test_users_list_is_paginated(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    headers = auth_headers("admin", "admin123")
+    response = client.get("/api/v1/users?page=1&page_size=2", headers=headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["page"] == 1
+    assert payload["page_size"] == 2
+    assert payload["total"] >= len(payload["items"])
+
+
 def test_dashboard_summary_includes_operational_lists(client: TestClient, seeded_db: Session, auth_headers) -> None:
     seed_asset(seeded_db)
     headers = auth_headers("admin", "admin123")
@@ -255,6 +265,16 @@ def test_dashboard_summary_includes_operational_lists(client: TestClient, seeded
     assert "maintenance_queue" in payload
 
 
+def test_employees_list_is_paginated(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    headers = auth_headers("admin", "admin123")
+    response = client.get("/api/v1/employees?page=1&page_size=2", headers=headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["page"] == 1
+    assert payload["page_size"] == 2
+    assert payload["total"] >= len(payload["items"])
+
+
 def test_document_download_returns_uploaded_file(
     client: TestClient,
     seeded_db: Session,
@@ -280,6 +300,22 @@ def test_document_download_returns_uploaded_file(
     assert download_response.status_code == 200, download_response.text
     assert download_response.content == b"contenuto documento"
     assert "manuale.txt" in download_response.headers.get("content-disposition", "")
+
+
+def test_maintenance_tickets_list_is_paginated(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    seed_asset(seeded_db)
+    headers = auth_headers("admin", "admin123")
+    client.post(
+        "/api/v1/maintenance-tickets",
+        headers=headers,
+        json={"asset_id": 1, "title": "Controllo ventola", "description": "Rumore anomalo"},
+    )
+    response = client.get("/api/v1/maintenance-tickets?page=1&page_size=1", headers=headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["page"] == 1
+    assert payload["page_size"] == 1
+    assert payload["total"] >= len(payload["items"])
 
 
 def test_asset_lifecycle_fields_are_persisted(client: TestClient, seeded_db: Session, auth_headers) -> None:
@@ -474,102 +510,113 @@ def test_maintenance_status_change_sends_email_notification(
     assert "Aggiornamento ticket manutenzione" in calls[0]["subject"]
 
 
-def test_software_license_creation_and_assignment_workflow(
-    client: TestClient,
-    seeded_db: Session,
-    auth_headers,
-) -> None:
-    headers = auth_headers("admin", "admin123")
-
-    create_response = client.post(
-        "/api/v1/software-licenses",
+def test_operator_can_create_asset_request(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    headers = auth_headers("employee", "employee123")
+    response = client.post(
+        "/api/v1/asset-requests",
         headers=headers,
         json={
-            "product_name": "Microsoft 365 Business Premium",
-            "license_type": "Named user",
-            "purchased_quantity": 2,
-            "expiry_date": "2026-04-25",
-            "renewal_alert_days": 30,
+            "requested_for_employee_id": 3,
+            "department_id": 2,
+            "category_id": 1,
+            "priority": "HIGH",
+            "business_justification": "Nuovo laptop per onboarding team supporto",
         },
     )
-    assert create_response.status_code == 200, create_response.text
-    license_id = create_response.json()["id"]
-
-    assign_response = client.post(
-        f"/api/v1/software-licenses/{license_id}/assign",
-        headers=headers,
-        json={"user_id": 3, "notes": "Assegnazione SAM"},
-    )
-    assert assign_response.status_code == 200, assign_response.text
-    payload = assign_response.json()
-    assert payload["user"]["id"] == 3
-
-    detail_response = client.get(f"/api/v1/software-licenses/{license_id}", headers=headers)
-    assert detail_response.status_code == 200, detail_response.text
-    detail_payload = detail_response.json()
-    assert detail_payload["active_assignments"] == 1
-    assert detail_payload["available_quantity"] == 1
-    assert any(event["event_type"] == "ASSIGN" for event in detail_payload["events"])
-
-
-def test_software_license_prevents_over_assignment(
-    client: TestClient,
-    seeded_db: Session,
-    auth_headers,
-) -> None:
-    seed_asset(seeded_db)
-    headers = auth_headers("admin", "admin123")
-    create_response = client.post(
-        "/api/v1/software-licenses",
-        headers=headers,
-        json={
-            "product_name": "Adobe Acrobat Pro",
-            "license_type": "Device",
-            "purchased_quantity": 1,
-        },
-    )
-    assert create_response.status_code == 200, create_response.text
-    license_id = create_response.json()["id"]
-
-    assign_response = client.post(
-        f"/api/v1/software-licenses/{license_id}/assign",
-        headers=headers,
-        json={"user_id": 3},
-    )
-    assert assign_response.status_code == 200, assign_response.text
-
-    second_assign_response = client.post(
-        f"/api/v1/software-licenses/{license_id}/assign",
-        headers=headers,
-        json={"asset_id": 1},
-    )
-    assert second_assign_response.status_code == 409
-    assert second_assign_response.json()["detail"] == "No license seats available"
-
-
-def test_dashboard_summary_includes_software_license_alerts(
-    client: TestClient,
-    seeded_db: Session,
-    auth_headers,
-) -> None:
-    headers = auth_headers("admin", "admin123")
-
-    create_response = client.post(
-        "/api/v1/software-licenses",
-        headers=headers,
-        json={
-            "product_name": "VMware vSphere",
-            "license_type": "Subscription",
-            "purchased_quantity": 5,
-            "expiry_date": "2026-04-10",
-            "renewal_alert_days": 15,
-        },
-    )
-    assert create_response.status_code == 200, create_response.text
-
-    response = client.get("/api/v1/dashboard/summary", headers=headers)
     assert response.status_code == 200, response.text
     payload = response.json()
-    assert payload["software_licenses_expiring_soon"] == 1
-    assert payload["software_license_alerts"][0]["product_name"] == "VMware vSphere"
-    assert any(notification["category"] == "Licenze" for notification in payload["notifications"])
+    assert payload["status"] == "PENDING_APPROVAL"
+    assert payload["priority"] == "HIGH"
+    assert payload["requested_by_user"]["username"] == "employee"
+
+
+def test_viewer_cannot_create_asset_request(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    headers = auth_headers("viewer", "viewer123")
+    response = client.post(
+        "/api/v1/asset-requests",
+        headers=headers,
+        json={
+            "category_id": 1,
+            "business_justification": "Richiesta non autorizzata",
+        },
+    )
+    assert response.status_code == 403
+
+
+def test_admin_can_approve_pending_asset_request(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    operator_headers = auth_headers("employee", "employee123")
+    create_response = client.post(
+        "/api/v1/asset-requests",
+        headers=operator_headers,
+        json={
+            "requested_for_employee_id": 3,
+            "department_id": 2,
+            "category_id": 1,
+            "business_justification": "Portatile per turni di reperibilita",
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    request_id = create_response.json()["id"]
+
+    admin_headers = auth_headers("admin", "admin123")
+    approve_response = client.post(
+        f"/api/v1/asset-requests/{request_id}/approve",
+        headers=admin_headers,
+        json={"approval_notes": "Approvato nel budget Q2"},
+    )
+    assert approve_response.status_code == 200, approve_response.text
+    payload = approve_response.json()
+    assert payload["status"] == "APPROVED"
+    assert payload["approved_by_user"]["username"] == "admin"
+    assert payload["approved_at"] is not None
+
+
+def test_asset_request_cannot_be_approved_twice(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    operator_headers = auth_headers("employee", "employee123")
+    create_response = client.post(
+        "/api/v1/asset-requests",
+        headers=operator_headers,
+        json={
+            "category_id": 1,
+            "business_justification": "Richiesta device condiviso per reparto",
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    request_id = create_response.json()["id"]
+
+    admin_headers = auth_headers("admin", "admin123")
+    first_approve = client.post(
+        f"/api/v1/asset-requests/{request_id}/approve",
+        headers=admin_headers,
+        json={},
+    )
+    assert first_approve.status_code == 200, first_approve.text
+
+    second_approve = client.post(
+        f"/api/v1/asset-requests/{request_id}/approve",
+        headers=admin_headers,
+        json={},
+    )
+    assert second_approve.status_code == 409
+    assert second_approve.json()["detail"] == "Only pending requests can be approved"
+
+
+def test_operator_cannot_approve_asset_request(client: TestClient, seeded_db: Session, auth_headers) -> None:
+    operator_headers = auth_headers("employee", "employee123")
+    create_response = client.post(
+        "/api/v1/asset-requests",
+        headers=operator_headers,
+        json={
+            "category_id": 1,
+            "business_justification": "Richiesta monitor per postazione front office",
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+    request_id = create_response.json()["id"]
+
+    approve_response = client.post(
+        f"/api/v1/asset-requests/{request_id}/approve",
+        headers=operator_headers,
+        json={},
+    )
+    assert approve_response.status_code == 403

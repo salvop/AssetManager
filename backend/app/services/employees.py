@@ -19,8 +19,14 @@ class EmployeeService:
         self.repository = EmployeeRepository(db)
         self.lookup_repository = LookupRepository(db)
 
-    def list_employees(self) -> EmployeeListResponse:
-        return EmployeeListResponse(items=[self._build_item(item) for item in self.repository.list_employees()])
+    def list_employees(self, *, page: int, page_size: int) -> EmployeeListResponse:
+        items, total = self.repository.list_employees_paginated(page=page, page_size=page_size)
+        return EmployeeListResponse(
+            items=[self._build_item(item) for item in items],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def get_employee(self, employee_id: int) -> EmployeeListItemResponse:
         employee = self.repository.get_by_id(employee_id)

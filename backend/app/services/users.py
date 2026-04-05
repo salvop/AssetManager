@@ -14,9 +14,14 @@ class UserService:
         self.db = db
         self.repository = UserRepository(db)
 
-    def list_users(self) -> UserListResponse:
-        users = self.repository.list_users()
-        return UserListResponse(items=[self._build_user_response(user) for user in users])
+    def list_users(self, *, page: int, page_size: int) -> UserListResponse:
+        users, total = self.repository.list_users_paginated(page=page, page_size=page_size)
+        return UserListResponse(
+            items=[self._build_user_response(user) for user in users],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def get_user(self, user_id: int) -> UserListItemResponse:
         user = self.repository.get_by_id(user_id)

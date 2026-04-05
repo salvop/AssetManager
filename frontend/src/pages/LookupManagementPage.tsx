@@ -18,10 +18,13 @@ import {
   updateLocation,
   updateVendor,
 } from "../api/lookups";
+import { Button } from "../components/ui/button";
+import { PageHeader } from "../components/ui/page-header";
+import { Panel } from "../components/ui/panel";
 import { useLookupsBundle } from "../hooks/useLookups";
 import type { LookupReference } from "../types/api";
 
-const inputClassName = "w-full rounded-md border border-slate-300 px-3 py-2";
+const inputClassName = "app-input";
 
 export function LookupManagementPage() {
   const queryClient = useQueryClient();
@@ -188,18 +191,27 @@ export function LookupManagementPage() {
       action();
     }
   };
+  const isMutating =
+    departmentMutation.isPending ||
+    locationMutation.isPending ||
+    categoryMutation.isPending ||
+    vendorMutation.isPending ||
+    modelMutation.isPending ||
+    departmentDeleteMutation.isPending ||
+    locationDeleteMutation.isPending ||
+    categoryDeleteMutation.isPending ||
+    vendorDeleteMutation.isPending ||
+    modelDeleteMutation.isPending;
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Amministrazione</p>
-        <h2 className="mt-2 text-3xl font-semibold">Gestione tabelle</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          Mantieni i dati di riferimento usati da asset, assegnazioni e manutenzione.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Amministrazione"
+        title="Gestione tabelle"
+        description="Mantieni i dati di riferimento usati da asset, assegnazioni e manutenzione."
+      />
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2" aria-busy={isLoading || isMutating}>
         <LookupPanel title="Dipartimenti" items={departments}>
           <div className="grid gap-3 md:grid-cols-2">
             <input aria-label="Codice dipartimento" value={department.code} onChange={(e) => setDepartment((v) => ({ ...v, code: e.target.value }))} placeholder="Codice" className={inputClassName} />
@@ -368,7 +380,7 @@ export function LookupManagementPage() {
         </LookupPanel>
       </div>
 
-      {isLoading && <p className="text-sm text-slate-500">Caricamento tabelle di supporto…</p>}
+      {isLoading && <p className="text-sm text-slate-500" aria-live="polite">Caricamento tabelle di supporto…</p>}
       {error && <p className="text-sm text-rose-600" aria-live="polite">{error.message}</p>}
       {(departmentMutation.error ||
         locationMutation.error ||
@@ -411,15 +423,10 @@ function LookupPanel({
   children: React.ReactNode;
 }) {
   return (
-    <section className={["rounded-xl border border-slate-200 bg-white p-6 shadow-sm", className ?? ""].join(" ")}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        <span className="text-sm text-slate-500">{items.length} elementi</span>
-      </div>
-      <div className="mt-4 space-y-4">
-        {children}
-      </div>
-    </section>
+    <Panel className={className} eyebrow="Lookup" title={title}>
+      <div className="mb-4 text-sm text-slate-500">{items.length} elementi</div>
+      <div className="space-y-4">{children}</div>
+    </Panel>
   );
 }
 
@@ -465,37 +472,24 @@ function ActionButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-    >
+    <Button type="button" disabled={disabled} onClick={onClick} className="bg-brand-600 hover:bg-brand-700">
       {children}
-    </button>
+    </Button>
   );
 }
 
 function SecondaryButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
-    >
+    <Button type="button" variant="secondary" onClick={onClick}>
       {children}
-    </button>
+    </Button>
   );
 }
 
 function DangerButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700"
-    >
+    <Button type="button" variant="secondary" onClick={onClick} className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
       {children}
-    </button>
+    </Button>
   );
 }

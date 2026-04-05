@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.lookup import Role
@@ -21,6 +21,17 @@ class UserRepository:
     def list_users(self) -> list[User]:
         statement = select(User).options(joinedload(User.roles).joinedload(UserRole.role)).order_by(User.full_name)
         return self.db.scalars(statement).unique().all()
+
+    def list_users_paginated(self, *, page: int, page_size: int) -> tuple[list[User], int]:
+        total = self.db.scalar(select(func.count()).select_from(User)) or 0
+        statement = (
+            select(User)
+            .options(joinedload(User.roles).joinedload(UserRole.role))
+            .order_by(User.full_name)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return self.db.scalars(statement).unique().all(), total
 
     def get_by_email(self, email: str) -> User | None:
         statement = select(User).options(joinedload(User.roles).joinedload(UserRole.role)).where(User.email == email)

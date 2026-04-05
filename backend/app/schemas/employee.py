@@ -20,6 +20,9 @@ class EmployeeListItemResponse(BaseModel):
 
 class EmployeeListResponse(BaseModel):
     items: list[EmployeeListItemResponse]
+    total: int
+    page: int
+    page_size: int
 
 
 class EmployeeCreateRequest(BaseModel):

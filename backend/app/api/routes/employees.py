@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -18,8 +18,10 @@ router = APIRouter()
 def list_employees(
     db: Session = Depends(get_db),
     current_user=Depends(require_roles("ADMIN", "ASSET_MANAGER", "OPERATOR", "VIEWER")),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
 ) -> EmployeeListResponse:
-    return EmployeeService(db).list_employees()
+    return EmployeeService(db).list_employees(page=page, page_size=page_size)
 
 
 @router.get("/{employee_id}", response_model=EmployeeListItemResponse)

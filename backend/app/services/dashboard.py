@@ -14,13 +14,11 @@ from app.schemas.dashboard import (
     DashboardLifecycleAlertResponse,
     DashboardRecentAssetResponse,
     DashboardRecentTicketResponse,
-    DashboardSoftwareLicenseAlertResponse,
     DashboardSummaryResponse,
     DashboardWorkflowAssetResponse,
     DashboardWorkflowTicketResponse,
     StatusCountResponse,
 )
-from app.services.software import SoftwareLicenseService
 
 
 class DashboardService:
@@ -42,8 +40,6 @@ class DashboardService:
         open_tickets = self.db.scalar(
             select(func.count()).select_from(MaintenanceTicket).where(MaintenanceTicket.closed_at.is_(None))
         ) or 0
-        software_license_alerts_raw = SoftwareLicenseService(self.db).build_license_alerts(today=today)
-        software_licenses_expiring_soon = len(software_license_alerts_raw)
         warranties_expiring_soon = self.db.scalar(
             select(func.count())
             .select_from(Asset)
@@ -248,24 +244,11 @@ class DashboardService:
                     category="Assegnazioni",
                 )
             )
-        for alert in software_license_alerts_raw[:4]:
-            severity = "high" if alert["days_remaining"] <= 7 else "medium"
-            notifications.append(
-                DashboardNotificationResponse(
-                    title="Licenza software in scadenza",
-                    body=f'{alert["product_name"]} entro {alert["days_remaining"]} giorni',
-                    severity=severity,
-                    link=f'/software-licenses/{alert["license_id"]}',
-                    category="Licenze",
-                )
-            )
-
         return DashboardSummaryResponse(
             total_assets=total_assets,
             assigned_assets=assigned_assets,
             assets_in_maintenance=assets_in_maintenance,
             open_maintenance_tickets=open_tickets,
-            software_licenses_expiring_soon=software_licenses_expiring_soon,
             warranties_expiring_soon=warranties_expiring_soon,
             end_of_life_soon=end_of_life_soon,
             assignments_due_soon=assignments_due_soon,
@@ -306,10 +289,6 @@ class DashboardService:
             lifecycle_alerts=lifecycle_alerts[:6],
             assignment_alerts=assignment_alerts[:6],
             notifications=notifications[:6],
-            software_license_alerts=[
-                DashboardSoftwareLicenseAlertResponse(**item)
-                for item in software_license_alerts_raw[:6]
-            ],
             assets_ready_for_assignment=[
                 DashboardWorkflowAssetResponse(
                     asset_id=row[0],

@@ -30,18 +30,28 @@ class MaintenanceTicketService:
         self.event_service = AssetEventService(db)
         self.email_notification_service = EmailNotificationService()
 
-    def list_tickets(self) -> MaintenanceTicketListResponse:
-        tickets = self.repository.list_tickets()
-        return MaintenanceTicketListResponse(items=[self._build_response(ticket) for ticket in tickets])
+    def list_tickets(self, *, page: int, page_size: int) -> MaintenanceTicketListResponse:
+        tickets, total = self.repository.list_tickets_paginated(page=page, page_size=page_size)
+        return MaintenanceTicketListResponse(
+            items=[self._build_response(ticket) for ticket in tickets],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def get_ticket(self, ticket_id: int) -> MaintenanceTicketResponse:
         ticket = require_resource(self.repository.get_by_id(ticket_id), "Maintenance ticket not found")
         return self._build_response(ticket)
 
-    def list_for_asset(self, asset_id: int) -> MaintenanceTicketListResponse:
+    def list_for_asset(self, asset_id: int, *, page: int, page_size: int) -> MaintenanceTicketListResponse:
         require_resource(self.asset_repository.get_by_id(asset_id), "Asset not found")
-        tickets = self.repository.list_for_asset(asset_id)
-        return MaintenanceTicketListResponse(items=[self._build_response(ticket) for ticket in tickets])
+        tickets, total = self.repository.list_for_asset_paginated(asset_id=asset_id, page=page, page_size=page_size)
+        return MaintenanceTicketListResponse(
+            items=[self._build_response(ticket) for ticket in tickets],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def create_ticket(self, payload: MaintenanceTicketCreateRequest, current_user_id: int) -> MaintenanceTicketResponse:
         asset = require_resource(self.asset_repository.get_by_id(payload.asset_id), "Asset not found")

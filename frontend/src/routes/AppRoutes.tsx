@@ -4,6 +4,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { getAccessToken } from "../lib/session";
 
 const AppShell = lazy(() => import("../components/AppShell").then((module) => ({ default: module.AppShell })));
+const AppSettingsPage = lazy(() =>
+  import("../pages/AppSettingsPage").then((module) => ({ default: module.AppSettingsPage })),
+);
 const AssignmentHistoryPage = lazy(() =>
   import("../features/assets/pages/AssignmentHistoryPage").then((module) => ({ default: module.AssignmentHistoryPage })),
 );
@@ -36,6 +39,9 @@ const SoftwareLicenseDetailPage = lazy(() =>
 const SoftwareLicenseListPage = lazy(() =>
   import("../pages/SoftwareLicenseListPage").then((module) => ({ default: module.SoftwareLicenseListPage })),
 );
+const UserPreferencesPage = lazy(() =>
+  import("../pages/UserPreferencesPage").then((module) => ({ default: module.UserPreferencesPage })),
+);
 const UserManagementPage = lazy(() =>
   import("../pages/UserManagementPage").then((module) => ({ default: module.UserManagementPage })),
 );
@@ -50,7 +56,7 @@ function ProtectedShell() {
 
 export function AppRoutes() {
   return (
-    <Suspense fallback={<p className="px-6 py-4 text-sm text-slate-500">Caricamento pagina...</p>}>
+    <Suspense fallback={<p className="px-6 py-4 text-sm text-slate-500">Caricamento pagina…</p>}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedShell />}>
@@ -62,10 +68,12 @@ export function AppRoutes() {
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />
           <Route path="/assets/:assetId/edit" element={<AssetFormPage />} />
           <Route path="/assets/:assetId/assignments" element={<AssignmentHistoryPage />} />
-          <Route path="/maintenance-tickets" element={<MaintenanceTicketListPage />} />
-          <Route path="/maintenance-tickets/:ticketId" element={<MaintenanceTicketDetailPage />} />
           <Route path="/software-licenses" element={<SoftwareLicenseListPage />} />
           <Route path="/software-licenses/:licenseId" element={<SoftwareLicenseDetailPage />} />
+          <Route path="/maintenance-tickets" element={<MaintenanceTicketListPage />} />
+          <Route path="/maintenance-tickets/:ticketId" element={<MaintenanceTicketDetailPage />} />
+          <Route path="/preferences" element={<UserPreferencesPage />} />
+          <Route path="/settings" element={<AppSettingsPage />} />
           <Route path="/lookups" element={<LookupManagementPage />} />
           <Route path="/users" element={<UserManagementPage />} />
         </Route>

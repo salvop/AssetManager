@@ -1,9 +1,20 @@
 import { Link } from "react-router-dom";
+import type { ComponentType, SVGProps } from "react";
 
+import { Badge } from "../components/ui/badge";
+import {
+  AssetIcon,
+  LicenseIcon,
+  MaintenanceIcon,
+  PeopleIcon,
+  PlusIcon,
+} from "../components/ui/icons";
+import { PageHeader } from "../components/ui/page-header";
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
 
 export function DashboardPage() {
   const { data, isLoading, error } = useDashboardSummary();
+  const softwareAlertsCount = (data?.notifications ?? []).filter((item) => item.category === "SOFTWARE_LICENSE").length;
 
   const workflowActivities = [
     {
@@ -11,30 +22,35 @@ export function DashboardPage() {
       description: "Crea un nuovo bene e avvia il workflow operativo.",
       to: "/assets/new",
       count: null,
+      icon: PlusIcon,
     },
     {
       title: "Assegna asset",
       description: "Beni disponibili pronti per la consegna.",
       to: "/assets",
       count: data?.assets_ready_for_assignment.length ?? 0,
+      icon: AssetIcon,
     },
     {
       title: "Registra rientro",
       description: "Assegnazioni con rientro da verificare.",
       to: "/assets",
       count: data ? data.assignments_due_soon + data.overdue_assignments : 0,
+      icon: PeopleIcon,
+    },
+    {
+      title: "Gestisci licenze",
+      description: "Monitora disponibilita e scadenze software.",
+      to: "/software-licenses",
+      count: softwareAlertsCount,
+      icon: LicenseIcon,
     },
     {
       title: "Apri ticket",
       description: "Gestisci guasti, verifiche e interventi.",
       to: "/maintenance-tickets",
       count: data?.open_maintenance_tickets ?? 0,
-    },
-    {
-      title: "Gestisci licenze",
-      description: "Presidia rinnovi e disponibilita software.",
-      to: "/software-licenses",
-      count: data?.software_licenses_expiring_soon ?? 0,
+      icon: MaintenanceIcon,
     },
   ];
 
@@ -51,7 +67,7 @@ export function DashboardPage() {
     body: string;
     meta: string;
     to: string;
-    tone: "amber" | "rose" | "sky";
+    tone: "amber" | "rose";
   }> = [
     ...(data?.lifecycle_alerts ?? []).slice(0, 3).map((alert) => ({
       key: `lifecycle-${alert.asset_id}-${alert.alert_type}`,
@@ -69,39 +85,29 @@ export function DashboardPage() {
       to: `/assets/${alert.asset_id}/assignments`,
       tone: alert.days_remaining < 0 ? ("rose" as const) : ("amber" as const),
     })),
-    ...(data?.software_license_alerts ?? []).slice(0, 3).map((alert) => ({
-      key: `license-${alert.license_id}`,
-      title: alert.product_name,
-      body: `Scadenza ${alert.expiry_date} · residuo ${alert.available_quantity}`,
-      meta: `${alert.days_remaining} gg`,
-      to: `/software-licenses/${alert.license_id}`,
-      tone: "sky" as const,
-    })),
   ].slice(0, 6);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Dashboard</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Panoramica operativa</h2>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Una vista unica per capire cosa fare adesso, cosa richiede attenzione e cosa e cambiato di recente.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <QuickLink to="/assets/new" title="Nuovo asset" />
-          <QuickLink to="/assets" title="Inventario" />
-          <QuickLink to="/software-licenses" title="Licenze" />
-          <QuickLink to="/maintenance-tickets" title="Manutenzione" />
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Dashboard"
+        title="Panoramica operativa"
+        description="Una vista unica per capire cosa fare adesso, cosa richiede attenzione e cosa e cambiato di recente."
+        actions={(
+          <div className="flex flex-wrap gap-2">
+          <QuickLink to="/assets/new" title="Nuovo asset" icon={PlusIcon} />
+          <QuickLink to="/assets" title="Inventario" icon={AssetIcon} />
+          <QuickLink to="/software-licenses" title="Licenze software" icon={LicenseIcon} />
+          <QuickLink to="/maintenance-tickets" title="Manutenzione" icon={MaintenanceIcon} />
+          </div>
+        )}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <section key={card.title} className="app-panel">
             <p className="text-sm font-medium text-slate-500">{card.title}</p>
-            <p className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">{isLoading ? "..." : card.value}</p>
+            <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums text-slate-950">{isLoading ? "…" : card.value}</p>
           </section>
         ))}
       </div>
@@ -117,12 +123,15 @@ export function DashboardPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">{activity.title}</p>
+                  <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <activity.icon className="h-4 w-4 text-slate-500" />
+                    {activity.title}
+                  </p>
                   <p className="mt-2 text-xs leading-5 text-slate-500">{activity.description}</p>
                 </div>
                 {activity.count !== null && (
                   <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
-                    {isLoading ? "..." : activity.count}
+                    {isLoading ? "…" : activity.count}
                   </span>
                 )}
               </div>
@@ -146,7 +155,7 @@ export function DashboardPage() {
                     <p className="text-sm font-semibold text-slate-900">{item.title}</p>
                     <p className="mt-1 text-xs text-slate-500">{item.body}</p>
                   </div>
-                  <span className={badgeTone(item.tone)}>{item.meta}</span>
+                  <Badge className={badgeTone(item.tone)}>{item.meta}</Badge>
                 </div>
               </Link>
             ))}
@@ -285,12 +294,21 @@ function QueueBlock({
   );
 }
 
-function QuickLink({ to, title }: { to: string; title: string }) {
+function QuickLink({
+  to,
+  title,
+  icon: Icon,
+}: {
+  to: string;
+  title: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+}) {
   return (
     <Link
       to={to}
-      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
     >
+      <Icon className="h-4 w-4 text-slate-500" />
       {title}
     </Link>
   );
@@ -322,12 +340,9 @@ function SectionHeading({
   );
 }
 
-function badgeTone(tone: "amber" | "rose" | "sky") {
+function badgeTone(tone: "amber" | "rose") {
   if (tone === "rose") {
-    return "rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 ring-1 ring-rose-200";
+    return "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200";
   }
-  if (tone === "sky") {
-    return "rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 ring-1 ring-sky-200";
-  }
-  return "rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-200";
+  return "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200";
 }

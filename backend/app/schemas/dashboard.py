@@ -54,14 +54,6 @@ class DashboardNotificationResponse(BaseModel):
     category: str
 
 
-class DashboardSoftwareLicenseAlertResponse(BaseModel):
-    license_id: int
-    product_name: str
-    expiry_date: str
-    days_remaining: int
-    available_quantity: int
-
-
 class DashboardWorkflowAssetResponse(BaseModel):
     asset_id: int
     asset_tag: str
@@ -88,7 +80,6 @@ class DashboardSummaryResponse(BaseModel):
     assigned_assets: int
     assets_in_maintenance: int
     open_maintenance_tickets: int
-    software_licenses_expiring_soon: int
     warranties_expiring_soon: int
     end_of_life_soon: int
     assignments_due_soon: int
@@ -100,7 +91,6 @@ class DashboardSummaryResponse(BaseModel):
     lifecycle_alerts: list[DashboardLifecycleAlertResponse]
     assignment_alerts: list[DashboardAssignmentAlertResponse]
     notifications: list[DashboardNotificationResponse]
-    software_license_alerts: list[DashboardSoftwareLicenseAlertResponse]
     assets_ready_for_assignment: list[DashboardWorkflowAssetResponse]
     retired_assets_pending_disposal: list[DashboardWorkflowAssetResponse]
     maintenance_queue: list[DashboardWorkflowTicketResponse]

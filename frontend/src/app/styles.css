@@ -10,11 +10,22 @@
   --brand-500: #2f6b4f;
   --brand-600: #24583f;
   --brand-700: #1e4733;
+  --brand-ring: rgba(47, 107, 79, 0.24);
   --ink-950: #142019;
   --surface-0: #f4f4f1;
   --surface-1: #ffffff;
   --surface-2: #f7f7f4;
   --line-soft: rgba(20, 32, 25, 0.08);
+  --status-success-bg: #dcfce7;
+  --status-success-fg: #166534;
+  --status-info-bg: #dbeafe;
+  --status-info-fg: #1e40af;
+  --status-warning-bg: #fef3c7;
+  --status-warning-fg: #92400e;
+  --status-danger-bg: #ffe4e6;
+  --status-danger-fg: #be123c;
+  --status-neutral-bg: #e2e8f0;
+  --status-neutral-fg: #334155;
 }
 
 html {
@@ -26,6 +37,11 @@ body {
   color: var(--ink-950);
   background: var(--surface-0);
   min-height: 100vh;
+}
+
+h1,
+h2 {
+  text-wrap: balance;
 }
 
 #root {
@@ -70,4 +86,32 @@ body {
 
 .soft-grid {
   display: none;
+}
+
+@layer components {
+  .app-input {
+    width: 100%;
+    border-radius: 1rem;
+    border: 1px solid rgb(203 213 225);
+    background: #fff;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .app-input::placeholder {
+    color: rgb(100 116 139);
+  }
+
+  .app-input:focus-visible {
+    outline: none;
+    border-color: var(--brand-500);
+    box-shadow: 0 0 0 4px var(--brand-ring);
+  }
+
+  .app-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 }

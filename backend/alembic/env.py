@@ -11,6 +11,7 @@ from app.models import asset  # noqa: F401
 from app.models import assignment  # noqa: F401
 from app.models import lookup  # noqa: F401
 from app.models import maintenance  # noqa: F401
+from app.models import preferences  # noqa: F401
 from app.models import user  # noqa: F401
 
 config = context.config

@@ -217,6 +217,9 @@ export type MaintenanceTicket = {
 
 export type MaintenanceTicketListResponse = {
   items: MaintenanceTicket[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export type MaintenanceTicketPayload = {
@@ -308,6 +311,9 @@ export type UserListItem = {
 
 export type UserListResponse = {
   items: UserListItem[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export type EmployeeListItem = {
@@ -322,6 +328,9 @@ export type EmployeeListItem = {
 
 export type EmployeeListResponse = {
   items: EmployeeListItem[];
+  total: number;
+  page: number;
+  page_size: number;
 };
 
 export type EmployeePayload = {
@@ -348,7 +357,6 @@ export type DashboardSummary = {
   assigned_assets: number;
   assets_in_maintenance: number;
   open_maintenance_tickets: number;
-  software_licenses_expiring_soon: number;
   warranties_expiring_soon: number;
   end_of_life_soon: number;
   assignments_due_soon: number;
@@ -394,13 +402,6 @@ export type DashboardSummary = {
     days_remaining: number;
     alert_type: string;
   }>;
-  software_license_alerts: Array<{
-    license_id: number;
-    product_name: string;
-    expiry_date: string;
-    days_remaining: number;
-    available_quantity: number;
-  }>;
   notifications: Array<{
     title: string;
     body: string;
@@ -437,3 +438,36 @@ export type DashboardSummary = {
     opened_days: number;
   }>;
 };
+
+export type UserPreferences = {
+  user_id: number;
+  language: string;
+  timezone: string;
+  date_format: "DD/MM/YYYY" | "YYYY-MM-DD" | "MM/DD/YYYY";
+  table_density: "compact" | "comfortable";
+  default_page_size: number;
+};
+
+export type UserPreferencesPayload = Partial<{
+  language: string;
+  timezone: string;
+  date_format: "DD/MM/YYYY" | "YYYY-MM-DD" | "MM/DD/YYYY";
+  table_density: "compact" | "comfortable";
+  default_page_size: number;
+}>;
+
+export type AppSettings = {
+  org_name: string;
+  default_asset_status_on_create_id: number;
+  max_document_size_mb: number;
+  allowed_document_mime_types: string[];
+  updated_by_user_id: number | null;
+  updated_at: string | null;
+};
+
+export type AppSettingsPayload = Partial<{
+  org_name: string;
+  default_asset_status_on_create_id: number;
+  max_document_size_mb: number;
+  allowed_document_mime_types: string[];
+}>;

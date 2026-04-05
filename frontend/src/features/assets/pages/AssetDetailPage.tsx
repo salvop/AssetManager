@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
+import type { ComponentType, SVGProps } from "react";
 
 import {
   assignAsset,
@@ -14,13 +14,18 @@ import {
   uploadAssetDocument,
 } from "../../../api/assets";
 import { createMaintenanceTicket } from "../../../api/maintenance";
+import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import { AssetIcon, MaintenanceIcon, PeopleIcon, PlusIcon, SettingsIcon } from "../../../components/ui/icons";
+import { Input } from "../../../components/ui/input";
+import { PageHeader } from "../../../components/ui/page-header";
+import { Panel } from "../../../components/ui/panel";
+import { Select } from "../../../components/ui/select";
+import { Textarea } from "../../../components/ui/textarea";
 import type { AssetEvent } from "../../../types/api";
 import { useAsset } from "../hooks/useAssets";
 import { useAssetMaintenance } from "../hooks/useAssetMaintenance";
 import { useLookupsBundle } from "../../../hooks/useLookups";
-
-const inputClassName =
-  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100";
 
 export function AssetDetailPage() {
   const params = useParams();
@@ -40,7 +45,8 @@ export function AssetDetailPage() {
   });
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedStatusId, setSelectedStatusId] = useState("");
-  const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [selectedAssignmentLocationId, setSelectedAssignmentLocationId] = useState("");
+  const [selectedRelocationLocationId, setSelectedRelocationLocationId] = useState("");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketDescription, setTicketDescription] = useState("");
@@ -90,7 +96,7 @@ export function AssetDetailPage() {
       assignAsset(assetId, {
         employee_id: Number(selectedEmployeeId),
         department_id: selectedDepartmentId ? Number(selectedDepartmentId) : null,
-        location_id: selectedLocationId ? Number(selectedLocationId) : null,
+        location_id: selectedAssignmentLocationId ? Number(selectedAssignmentLocationId) : null,
       }),
     onSuccess: invalidate,
   });
@@ -106,7 +112,8 @@ export function AssetDetailPage() {
   });
 
   const locationMutation = useMutation({
-    mutationFn: () => changeAssetLocation(assetId, { location_id: selectedLocationId ? Number(selectedLocationId) : null }),
+    mutationFn: () =>
+      changeAssetLocation(assetId, { location_id: selectedRelocationLocationId ? Number(selectedRelocationLocationId) : null }),
     onSuccess: invalidate,
   });
 
@@ -141,39 +148,44 @@ export function AssetDetailPage() {
   if (isLoading) return <p className="text-sm text-slate-500">Caricamento dettaglio asset…</p>;
   if (error || !asset) return <p className="text-sm text-rose-600">{error?.message ?? "Asset non trovato"}</p>;
 
+  const isAssignmentBlockedByStatus = asset.status.code === "RETIRED" || asset.status.code === "DISPOSED";
+  const isAlreadyAssigned = Boolean(asset.assigned_employee);
+  const canAssign =
+    !areLookupsLoading &&
+    !assignMutation.isPending &&
+    !isAssignmentBlockedByStatus &&
+    !isAlreadyAssigned &&
+    Boolean(selectedEmployeeId);
+  const isStatusUnchanged = selectedStatusId ? Number(selectedStatusId) === asset.status.id : false;
+  const canApplyStatus = Boolean(selectedStatusId) && !isStatusUnchanged && !statusMutation.isPending;
+  const currentLocationId = asset.location?.id ?? null;
+  const selectedRelocationId = selectedRelocationLocationId ? Number(selectedRelocationLocationId) : null;
+  const isLocationUnchanged = selectedRelocationId === currentLocationId;
+  const canApplyLocation = !locationMutation.isPending && !isLocationUnchanged;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">Dettaglio asset</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{asset.name}</h2>
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-              <span>{asset.asset_tag}</span>
-              <span className="text-slate-300">•</span>
-              <span>{asset.status.name}</span>
-              {asset.location?.name && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  <span>{asset.location.name}</span>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
+      <PageHeader
+        eyebrow="Dettaglio asset"
+        title={asset.name}
+        description={`${asset.asset_tag} · ${asset.status.name}${asset.location?.name ? ` · ${asset.location.name}` : ""}`}
+        actions={(
+          <>
             <Link
               to={`/assets/${asset.id}/edit`}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
             >
               Modifica asset
             </Link>
             <Link
               to={`/assets/${asset.id}/assignments`}
-              className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
+              className="inline-flex items-center rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
             >
               Storico assegnazioni
             </Link>
-          </div>
-      </div>
+          </>
+        )}
+      />
       <div className="grid gap-3 md:grid-cols-4">
           <HeroStat label="Stato" value={asset.status.name} />
           <HeroStat label="Assegnato a" value={asset.assigned_employee?.full_name ?? "Non assegnato"} />
@@ -191,26 +203,31 @@ export function AssetDetailPage() {
             to="#assignment-workflow"
             title="Assegna asset"
             description="Consegna il bene a un utente o reparto."
+            icon={PeopleIcon}
           />
           <ActionShortcut
             to="#assignment-workflow"
             title="Registra rientro"
             description="Chiudi l'assegnazione attiva e rendilo disponibile."
+            icon={PlusIcon}
           />
           <ActionShortcut
             to="#maintenance-workflow"
             title="Apri ticket"
             description="Avvia una lavorazione di manutenzione."
+            icon={MaintenanceIcon}
           />
           <ActionShortcut
             to="#operational-workflow"
             title="Cambia stato"
             description="Aggiorna stato e collocazione operativa."
+            icon={SettingsIcon}
           />
           <ActionShortcut
             to={`/assets/${asset.id}/edit`}
             title="Aggiorna anagrafica"
             description="Modifica dati, lifecycle e dismissione."
+            icon={AssetIcon}
           />
         </div>
       </section>
@@ -337,25 +354,33 @@ export function AssetDetailPage() {
 
           <Panel title="Ticket di manutenzione" id="maintenance-workflow">
             <div className="space-y-3">
-              <input
-                value={ticketTitle}
-                onChange={(event) => setTicketTitle(event.target.value)}
-                placeholder="Titolo ticket"
-                className={inputClassName}
-              />
-              <textarea
-                value={ticketDescription}
-                onChange={(event) => setTicketDescription(event.target.value)}
-                placeholder="Descrivi il problema"
-                className={`${inputClassName} min-h-24`}
-              />
-              <button
+              <label htmlFor="maintenance-ticket-title" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Titolo ticket</span>
+                <Input
+                  id="maintenance-ticket-title"
+                  name="maintenance-ticket-title"
+                  value={ticketTitle}
+                  onChange={(event) => setTicketTitle(event.target.value)}
+                  placeholder="Titolo ticket…"
+                />
+              </label>
+              <label htmlFor="maintenance-ticket-description" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Descrizione</span>
+                <Textarea
+                  id="maintenance-ticket-description"
+                  name="maintenance-ticket-description"
+                  value={ticketDescription}
+                  onChange={(event) => setTicketDescription(event.target.value)}
+                  placeholder="Descrivi il problema…"
+                />
+              </label>
+              <Button
+                type="button"
                 disabled={!ticketTitle || maintenanceMutation.isPending}
                 onClick={() => maintenanceMutation.mutate()}
-                className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
               >
                 {maintenanceMutation.isPending ? "Apertura…" : "Apri ticket di manutenzione"}
-              </button>
+              </Button>
             </div>
 
             <div className="mt-5 space-y-2">
@@ -382,81 +407,146 @@ export function AssetDetailPage() {
         <section className="space-y-6">
           <Panel title="Assegna asset" id="assignment-workflow">
             <div className="space-y-3">
-              <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} className={inputClassName}>
-                <option value="">Seleziona assegnatario</option>
-                {employees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.full_name}
-                  </option>
-                ))}
-              </select>
-              <select value={selectedDepartmentId} onChange={(event) => setSelectedDepartmentId(event.target.value)} className={inputClassName}>
-                <option value="">Dipartimento</option>
-                {departments.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              <select value={selectedLocationId} onChange={(event) => setSelectedLocationId(event.target.value)} className={inputClassName}>
-                <option value="">Sede</option>
-                {locations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                disabled={!selectedEmployeeId || assignMutation.isPending || areLookupsLoading}
-                onClick={() => assignMutation.mutate()}
-                className="w-full rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
-              >
-                {assignMutation.isPending ? "Assegnazione..." : "Assegna asset"}
-              </button>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-800">Contesto operativo</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Badge tone={isAssignmentBlockedByStatus ? "danger" : "neutral"}>
+                    Stato: {asset.status.code ?? asset.status.name}
+                  </Badge>
+                  <Badge tone={asset.assigned_employee ? "warning" : "success"}>
+                    {asset.assigned_employee ? `Assegnato a ${asset.assigned_employee.full_name}` : "Disponibile"}
+                  </Badge>
+                </div>
+              </div>
+              <label htmlFor="assign-employee" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Assegnatario</span>
+                <Select
+                  id="assign-employee"
+                  name="assign-employee"
+                  value={selectedEmployeeId}
+                  onChange={(event) => setSelectedEmployeeId(event.target.value)}
+                >
+                  <option value="">Seleziona assegnatario</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.full_name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label htmlFor="assign-department" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Dipartimento</span>
+                <Select
+                  id="assign-department"
+                  name="assign-department"
+                  value={selectedDepartmentId}
+                  onChange={(event) => setSelectedDepartmentId(event.target.value)}
+                >
+                  <option value="">Nessun dipartimento</option>
+                  {departments.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label htmlFor="assign-location" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sede assegnazione</span>
+                <Select
+                  id="assign-location"
+                  name="assign-location"
+                  value={selectedAssignmentLocationId}
+                  onChange={(event) => setSelectedAssignmentLocationId(event.target.value)}
+                >
+                  <option value="">Mantieni sede attuale</option>
+                  {locations.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <Button type="button" disabled={!canAssign} onClick={() => assignMutation.mutate()} className="w-full">
+                {assignMutation.isPending ? "Assegnazione…" : "Assegna asset"}
+              </Button>
+              {!canAssign && (
+                <p className="text-xs text-slate-500" aria-live="polite">
+                  {isAssignmentBlockedByStatus
+                    ? "Asset non assegnabile: stato RETIRED o DISPOSED."
+                    : isAlreadyAssigned
+                      ? "Asset gia assegnato: registra prima il rientro."
+                      : "Seleziona un assegnatario per procedere."}
+                </p>
+              )}
               {asset.assigned_employee && (
-                <button
+                <Button
+                  type="button"
+                  variant="secondary"
                   onClick={() => returnMutation.mutate()}
-                  className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-50"
+                  disabled={returnMutation.isPending}
+                  className="w-full"
                 >
                   {returnMutation.isPending ? "Rientro…" : "Registra rientro"}
-                </button>
+                </Button>
               )}
             </div>
           </Panel>
 
           <Panel title="Modifiche operative" id="operational-workflow">
             <div className="space-y-3">
-              <select value={selectedStatusId} onChange={(event) => setSelectedStatusId(event.target.value)} className={inputClassName}>
-                <option value="">Cambia stato</option>
-                {statuses.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                disabled={!selectedStatusId || statusMutation.isPending}
+              <label htmlFor="operational-status" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Stato</span>
+                <Select
+                  id="operational-status"
+                  name="operational-status"
+                  value={selectedStatusId}
+                  onChange={(event) => setSelectedStatusId(event.target.value)}
+                >
+                  <option value="">Cambia stato</option>
+                  {statuses.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!canApplyStatus}
                 onClick={() => statusMutation.mutate()}
-                className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50"
+                className="w-full"
               >
                 Applica stato
-              </button>
+              </Button>
+              {isStatusUnchanged && <p className="text-xs text-slate-500">Lo stato selezionato e gia quello corrente.</p>}
 
-              <select value={selectedLocationId} onChange={(event) => setSelectedLocationId(event.target.value)} className={inputClassName}>
-                <option value="">Sposta asset</option>
-                {locations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                disabled={locationMutation.isPending}
+              <label htmlFor="operational-location" className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sede</span>
+                <Select
+                  id="operational-location"
+                  name="operational-location"
+                  value={selectedRelocationLocationId}
+                  onChange={(event) => setSelectedRelocationLocationId(event.target.value)}
+                >
+                  <option value="">Nessuna sede</option>
+                  {locations.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!canApplyLocation}
                 onClick={() => locationMutation.mutate()}
-                className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-50"
+                className="w-full"
               >
                 Applica sede
-              </button>
+              </Button>
+              {isLocationUnchanged && <p className="text-xs text-slate-500">La sede selezionata coincide con quella attuale.</p>}
             </div>
           </Panel>
         </section>
@@ -465,19 +555,17 @@ export function AssetDetailPage() {
   );
 }
 
-function Panel({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
-  return (
-    <section id={id} className="app-panel scroll-mt-6">
-      <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Modulo operativo</p>
-        <h3 className="mt-2 text-lg font-semibold text-slate-900">{title}</h3>
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-
-function ActionShortcut({ to, title, description }: { to: string; title: string; description: string }) {
+function ActionShortcut({
+  to,
+  title,
+  description,
+  icon: Icon,
+}: {
+  to: string;
+  title: string;
+  description: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+}) {
   const isAnchor = to.startsWith("#");
   const className =
     "rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-white";
@@ -485,7 +573,10 @@ function ActionShortcut({ to, title, description }: { to: string; title: string;
   if (isAnchor) {
     return (
       <a href={to} className={className}>
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <Icon className="h-4 w-4 text-slate-500" />
+          {title}
+        </p>
         <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
       </a>
     );
@@ -493,7 +584,10 @@ function ActionShortcut({ to, title, description }: { to: string; title: string;
 
   return (
     <Link to={to} className={className}>
-      <p className="text-sm font-semibold text-slate-900">{title}</p>
+      <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <Icon className="h-4 w-4 text-slate-500" />
+        {title}
+      </p>
       <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
     </Link>
   );

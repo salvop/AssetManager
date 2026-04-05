@@ -2,15 +2,21 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 
 import { exportAssetsCsv, exportAssetsXlsx } from "../../../api/assets";
+import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { PageHeader } from "../../../components/ui/page-header";
+import { Panel } from "../../../components/ui/panel";
+import { Select } from "../../../components/ui/select";
 import { useLookupsBundle } from "../../../hooks/useLookups";
 import { useAssets } from "../hooks/useAssets";
 
-const statusToneMap: Record<string, string> = {
-  IN_STOCK: "bg-emerald-100 text-emerald-800",
-  ASSIGNED: "bg-blue-100 text-blue-800",
-  MAINTENANCE: "bg-amber-100 text-amber-800",
-  RETIRED: "bg-slate-200 text-slate-700",
-  DISPOSED: "bg-rose-100 text-rose-700",
+const statusToneMap: Record<string, "success" | "info" | "warning" | "neutral" | "danger"> = {
+  IN_STOCK: "success",
+  ASSIGNED: "info",
+  MAINTENANCE: "warning",
+  RETIRED: "neutral",
+  DISPOSED: "danger",
 };
 
 export function AssetListPage() {
@@ -66,72 +72,71 @@ export function AssetListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">Inventario</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Registro asset</h2>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">Ricerca, filtra ed esporta il parco asset attuale.</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-            <button
+      <PageHeader
+        eyebrow="Inventario"
+        title="Registro asset"
+        description="Ricerca, filtra ed esporta il parco asset attuale."
+        actions={(
+          <>
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => exportMutation.mutate()}
               disabled={exportMutation.isPending}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
               {exportMutation.isPending ? "Esportazione…" : "Esporta CSV"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => exportExcelMutation.mutate()}
               disabled={exportExcelMutation.isPending}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
               {exportExcelMutation.isPending ? "Esportazione…" : "Esporta Excel"}
-            </button>
+            </Button>
             <Link
               to="/assets/new"
-              className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900"
+              className="inline-flex items-center rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
             >
               Nuovo asset
             </Link>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
-      <section className="app-panel">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Filtri</p>
-            <h3 className="mt-2 text-lg font-semibold text-slate-900">Ricerca e segmentazione</h3>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="rounded-full bg-slate-950 px-3 py-1 font-semibold text-white">{data?.total ?? 0} asset</span>
-            <button
-              onClick={() => {
-                setSearchParams(new URLSearchParams(), { replace: true });
-              }}
-              className="font-medium text-brand-700 transition hover:text-brand-900"
-            >
-              Azzera filtri
-            </button>
-          </div>
+      <Panel eyebrow="Filtri" title="Ricerca & segmentazione">
+        <div className="flex items-center justify-end gap-3 text-sm">
+          <Badge tone="neutral" className="bg-slate-950 text-white">
+            {data?.total ?? 0} asset
+          </Badge>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setSearchParams(new URLSearchParams(), { replace: true });
+            }}
+          >
+            Azzera filtri
+          </Button>
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-2">
+          <label htmlFor="asset-filter-search" className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Ricerca</span>
-            <input
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
-              placeholder="Cerca per tag o nome asset"
+            <Input
+              id="asset-filter-search"
+              name="asset-filter-search"
+              placeholder="Cerca per tag o nome asset…"
               value={search}
               onChange={(event) => setFilterParam("search", event.target.value)}
             />
           </label>
-          <label className="space-y-2">
+          <label htmlFor="asset-filter-status" className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Stato</span>
-            <select
+            <Select
+              id="asset-filter-status"
+              name="asset-filter-status"
               value={statusId}
               onChange={(event) => setFilterParam("status_id", event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
             >
               <option value="">Tutti gli stati</option>
               {statuses.map((item) => (
@@ -139,14 +144,15 @@ export function AssetListPage() {
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
-          <label className="space-y-2">
+          <label htmlFor="asset-filter-category" className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Categoria</span>
-            <select
+            <Select
+              id="asset-filter-category"
+              name="asset-filter-category"
               value={categoryId}
               onChange={(event) => setFilterParam("category_id", event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
             >
               <option value="">Tutte le categorie</option>
               {categories.map((item) => (
@@ -154,14 +160,15 @@ export function AssetListPage() {
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
-          <label className="space-y-2">
+          <label htmlFor="asset-filter-location" className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sede</span>
-            <select
+            <Select
+              id="asset-filter-location"
+              name="asset-filter-location"
               value={locationId}
               onChange={(event) => setFilterParam("location_id", event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
             >
               <option value="">Tutte le sedi</option>
               {locations.map((item) => (
@@ -169,25 +176,26 @@ export function AssetListPage() {
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
-      </section>
+      </Panel>
 
-      <section className="app-panel overflow-hidden p-0">
+      <Panel className="overflow-hidden p-0">
         <div className="border-b border-slate-200/80 px-6 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Vista tabellare</p>
           <h3 className="mt-2 text-lg font-semibold text-slate-900">Inventario corrente</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200/80">
+            <caption className="sr-only">Elenco asset con stato, sede e informazioni lifecycle</caption>
             <thead className="bg-slate-50/80">
               <tr className="text-left text-xs uppercase tracking-[0.18em] text-slate-500">
-                <th className="px-6 py-4 font-semibold">Tag asset</th>
-                <th className="px-6 py-4 font-semibold">Nome</th>
-                <th className="px-6 py-4 font-semibold">Stato</th>
-                <th className="px-6 py-4 font-semibold">Sede</th>
-                <th className="px-6 py-4 font-semibold">Lifecycle</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Tag asset</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Nome</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Stato</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Sede</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Lifecycle</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/80">
@@ -210,14 +218,9 @@ export function AssetListPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span
-                      className={[
-                        "rounded-full px-3 py-1 text-xs font-semibold",
-                        statusToneMap[asset.status.code ?? ""] ?? "bg-brand-100 text-brand-800",
-                      ].join(" ")}
-                    >
+                    <Badge tone={statusToneMap[asset.status.code ?? ""] ?? "neutral"}>
                       {asset.status.code ?? asset.status.name}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-6 py-4 text-slate-700">{asset.location?.name ?? "-"}</td>
                   <td className="px-6 py-4 text-slate-700">
@@ -255,7 +258,7 @@ export function AssetListPage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
 
       {isLoading && <p className="text-sm text-slate-500">Caricamento asset…</p>}
       {(exportMutation.error || exportExcelMutation.error) && (

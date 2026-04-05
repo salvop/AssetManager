@@ -12,6 +12,7 @@ from app.models.assignment import AssetAssignment
 from app.models.employee import Employee
 from app.models.lookup import AssetCategory, AssetModel, AssetStatus, Department, Location, Role, Vendor
 from app.models.maintenance import MaintenanceTicket
+from app.models.preferences import AppSetting
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password
 
@@ -205,6 +206,23 @@ def seed_vendors_and_models(db: Session) -> None:
         if category is not None:
             for key, value in payload.items():
                 setattr(category, key, value)
+    db.flush()
+
+
+def seed_app_settings(db: Session) -> None:
+    in_stock_status = db.scalar(select(AssetStatus).where(AssetStatus.code == "IN_STOCK"))
+    if in_stock_status is None:
+        raise RuntimeError("IN_STOCK status not found")
+    upsert_model(
+        db,
+        AppSetting,
+        1,
+        org_name="Asset Manager",
+        default_asset_status_on_create_id=in_stock_status.id,
+        max_document_size_mb=10,
+        allowed_document_mime_types="application/pdf,image/png,image/jpeg,text/plain",
+        updated_by_user_id=1,
+    )
     db.flush()
 
 
@@ -562,6 +580,7 @@ def main() -> None:
         seed_users(db)
         seed_employees(db)
         seed_vendors_and_models(db)
+        seed_app_settings(db)
         seed_assets_domain_data(db)
         db.commit()
     finally:

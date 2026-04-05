@@ -3,6 +3,13 @@ import { useForm } from "react-hook-form";
 import { Link, useParams } from "react-router-dom";
 
 import { changeMaintenanceTicketStatus, updateMaintenanceTicket } from "../api/maintenance";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { PageHeader } from "../components/ui/page-header";
+import { Panel } from "../components/ui/panel";
+import { Select } from "../components/ui/select";
+import { Textarea } from "../components/ui/textarea";
 import { useLookupsBundle } from "../hooks/useLookups";
 import { useMaintenanceTicket } from "../hooks/useMaintenance";
 
@@ -12,8 +19,16 @@ type TicketFormValues = {
   vendor_id: string;
 };
 
-const inputClassName =
-  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100";
+const ticketStatusTone: Record<string, "warning" | "info" | "success" | "neutral"> = {
+  OPEN: "warning",
+  IN_PROGRESS: "info",
+  CLOSED: "success",
+};
+const ticketStatusLabel: Record<string, string> = {
+  OPEN: "Aperto",
+  IN_PROGRESS: "In lavorazione",
+  CLOSED: "Chiuso",
+};
 
 export function MaintenanceTicketDetailPage() {
   const params = useParams();
@@ -59,74 +74,91 @@ export function MaintenanceTicketDetailPage() {
     },
   });
 
-  if (isLoading) return <p className="text-sm text-slate-500">Caricamento ticket...</p>;
-  if (error || !ticket) return <p className="text-sm text-rose-600">{error?.message ?? "Ticket non trovato"}</p>;
+  if (isLoading) return <p className="text-sm text-slate-500" aria-live="polite">Caricamento ticket…</p>;
+  if (error || !ticket) return <p className="text-sm text-rose-600" aria-live="polite">{error?.message ?? "Ticket non trovato"}</p>;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between border-b border-slate-200 pb-5">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Dettaglio manutenzione</p>
-          <h2 className="mt-2 text-3xl font-semibold">{ticket.title}</h2>
-        </div>
-        <Link to="/maintenance-tickets" className="text-sm font-medium text-brand-700">
-          Torna ai ticket
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Dettaglio manutenzione"
+        title={ticket.title}
+        description={`${ticket.asset.code ?? ticket.asset.name} · aperto il ${new Date(ticket.opened_at).toLocaleString()}`}
+        actions={(
+          <Link
+            to="/maintenance-tickets"
+            className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          >
+            Torna ai ticket
+          </Link>
+        )}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <section className="app-panel">
+        <Panel eyebrow="Anagrafica ticket" title="Modifica ticket" aria-busy={updateMutation.isPending}>
           <form onSubmit={form.handleSubmit((values) => updateMutation.mutate(values))} className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Titolo</label>
-              <input {...form.register("title")} className={inputClassName} />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Fornitore</label>
-              <select {...form.register("vendor_id")} className={inputClassName}>
+            <label htmlFor="maintenance-detail-title" className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Titolo</span>
+              <Input id="maintenance-detail-title" {...form.register("title")} />
+            </label>
+            <label htmlFor="maintenance-detail-vendor" className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Fornitore</span>
+              <Select id="maintenance-detail-vendor" {...form.register("vendor_id")}>
                 <option value="">Nessun fornitore</option>
                 {vendors.map((vendor) => (
                   <option key={vendor.id} value={vendor.id}>
                     {vendor.name}
                   </option>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Descrizione</label>
-              <textarea {...form.register("description")} className={`${inputClassName} min-h-32`} />
-            </div>
-            <button className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900">
-              {updateMutation.isPending ? "Salvataggio..." : "Salva ticket"}
-            </button>
+              </Select>
+            </label>
+            <label htmlFor="maintenance-detail-description" className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Descrizione</span>
+              <Textarea id="maintenance-detail-description" {...form.register("description")} className="min-h-32" />
+            </label>
+            <Button type="submit">
+              {updateMutation.isPending ? "Salvataggio…" : "Salva ticket"}
+            </Button>
           </form>
-        </section>
+          {updateMutation.error && (
+            <p className="mt-3 text-sm text-rose-600" aria-live="polite">
+              {updateMutation.error.message}
+            </p>
+          )}
+        </Panel>
 
         <section className="space-y-6">
-          <div className="app-panel">
-            <h3 className="text-lg font-semibold text-slate-900">Riepilogo</h3>
-            <div className="mt-4 space-y-2 text-sm text-slate-600">
+          <Panel eyebrow="Riepilogo" title="Contesto">
+            <div className="space-y-2 text-sm text-slate-600">
               <p><span className="font-medium text-slate-900">Asset:</span> {ticket.asset.code ?? ticket.asset.name}</p>
-              <p><span className="font-medium text-slate-900">Stato:</span> {ticket.status}</p>
+              <p>
+                <span className="font-medium text-slate-900">Stato:</span> <Badge tone={ticketStatusTone[ticket.status] ?? "neutral"} className="ml-2">{ticketStatusLabel[ticket.status] ?? ticket.status}</Badge>
+              </p>
               <p><span className="font-medium text-slate-900">Aperto il:</span> {new Date(ticket.opened_at).toLocaleString()}</p>
               <p><span className="font-medium text-slate-900">Aperto da:</span> {ticket.opened_by_user?.full_name ?? "-"}</p>
             </div>
-          </div>
+          </Panel>
 
-          <div className="app-panel">
-            <h3 className="text-lg font-semibold text-slate-900">Azioni stato</h3>
-            <div className="mt-4 flex flex-col gap-3">
+          <Panel eyebrow="Workflow stato" title="Azioni" aria-busy={statusMutation.isPending}>
+            <div className="flex flex-col gap-3">
               {["OPEN", "IN_PROGRESS", "CLOSED"].map((value) => (
-                <button
+                <Button
                   key={value}
+                  type="button"
+                  variant="secondary"
                   onClick={() => statusMutation.mutate(value)}
-                  className="rounded-full border border-slate-300 px-4 py-2.5 text-left text-sm font-medium transition hover:bg-slate-50"
+                  disabled={statusMutation.isPending || value === ticket.status}
+                  className="justify-start"
                 >
-                  Imposta {value}
-                </button>
+                  Imposta {ticketStatusLabel[value] ?? value}
+                </Button>
               ))}
             </div>
-          </div>
+            {statusMutation.error && (
+              <p className="mt-3 text-sm text-rose-600" aria-live="polite">
+                {statusMutation.error.message}
+              </p>
+            )}
+          </Panel>
         </section>
       </div>
     </div>

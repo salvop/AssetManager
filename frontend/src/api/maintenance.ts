@@ -6,12 +6,23 @@ import type {
   MaintenanceTicketUpdatePayload,
 } from "../types/api";
 
-export function getMaintenanceTickets() {
-  return apiRequest<MaintenanceTicketListResponse>("/maintenance-tickets");
+type MaintenanceListParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+export function getMaintenanceTickets(params: MaintenanceListParams = {}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("page_size", String(params.pageSize ?? 100));
+  return apiRequest<MaintenanceTicketListResponse>(`/maintenance-tickets?${searchParams.toString()}`);
 }
 
-export function getMaintenanceTicketsByAsset(assetId: number) {
-  return apiRequest<MaintenanceTicketListResponse>(`/maintenance-tickets/by-asset/${assetId}`);
+export function getMaintenanceTicketsByAsset(assetId: number, params: MaintenanceListParams = {}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("page_size", String(params.pageSize ?? 100));
+  return apiRequest<MaintenanceTicketListResponse>(`/maintenance-tickets/by-asset/${assetId}?${searchParams.toString()}`);
 }
 
 export function getMaintenanceTicket(ticketId: number) {

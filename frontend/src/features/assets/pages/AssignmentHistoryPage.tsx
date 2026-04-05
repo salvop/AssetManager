@@ -1,5 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
+import { PageHeader } from "../../../components/ui/page-header";
+import { Panel } from "../../../components/ui/panel";
 import { useAsset } from "../hooks/useAssets";
 
 export function AssignmentHistoryPage() {
@@ -7,30 +9,32 @@ export function AssignmentHistoryPage() {
   const assetId = Number(params.assetId);
   const { data: asset, isLoading, error } = useAsset(assetId);
 
-  if (isLoading) return <p className="text-sm text-slate-500">Caricamento storico assegnazioni...</p>;
+  if (isLoading) return <p className="text-sm text-slate-500" aria-live="polite">Caricamento storico assegnazioni…</p>;
   if (error || !asset) return <p className="text-sm text-rose-600">{error?.message ?? "Asset non trovato"}</p>;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Storico assegnazioni</p>
-          <h2 className="mt-2 text-3xl font-semibold">{asset.asset_tag}</h2>
-        </div>
-        <Link to={`/assets/${asset.id}`} className="text-sm font-medium text-brand-700">
-          Torna all'asset
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Storico assegnazioni"
+        title={asset.asset_tag}
+        description="Tracciabilita completa delle assegnazioni e dei rientri registrati."
+        actions={(
+          <Link to={`/assets/${asset.id}`} className="text-sm font-medium text-brand-700">
+            Torna all'asset
+          </Link>
+        )}
+      />
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <Panel className="overflow-hidden p-0">
         <table className="min-w-full divide-y divide-slate-200">
+          <caption className="sr-only">Storico assegnazioni e rientri dell'asset</caption>
           <thead className="bg-slate-50">
             <tr className="text-left text-sm text-slate-500">
-              <th className="px-4 py-3 font-medium">Assegnatario</th>
-              <th className="px-4 py-3 font-medium">Assegnato il</th>
-              <th className="px-4 py-3 font-medium">Rientrato il</th>
-              <th className="px-4 py-3 font-medium">Sede</th>
-              <th className="px-4 py-3 font-medium">Dipartimento</th>
+              <th scope="col" className="px-4 py-3 font-medium">Assegnatario</th>
+              <th scope="col" className="px-4 py-3 font-medium">Assegnato il</th>
+              <th scope="col" className="px-4 py-3 font-medium">Rientrato il</th>
+              <th scope="col" className="px-4 py-3 font-medium">Sede</th>
+              <th scope="col" className="px-4 py-3 font-medium">Dipartimento</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
@@ -45,7 +49,7 @@ export function AssignmentHistoryPage() {
             ))}
           </tbody>
         </table>
-      </section>
+      </Panel>
     </div>
   );
 }

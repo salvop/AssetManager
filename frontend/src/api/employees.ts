@@ -1,8 +1,16 @@
 import { apiRequest } from "./http";
 import type { EmployeeListItem, EmployeeListResponse, EmployeePayload } from "../types/api";
 
-export function getEmployees() {
-  return apiRequest<EmployeeListResponse>("/employees");
+type EmployeeListParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+export function getEmployees(params: EmployeeListParams = {}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("page_size", String(params.pageSize ?? 100));
+  return apiRequest<EmployeeListResponse>(`/employees?${searchParams.toString()}`);
 }
 
 export function getEmployee(employeeId: number) {
