@@ -2,31 +2,68 @@
 
 ## Purpose
 
-This repository contains an internal enterprise Asset Manager application.
-The objective is to build a maintainable MVP for asset inventory, assignments, event history, documents, and maintenance.
+This repository is for **OpsAsset**, an internal enterprise asset management application.
+The goal is to build a **maintainable MVP** for:
+- asset inventory
+- assignments and returns
+- asset status and location changes
+- append-only event history
+- asset documents
+- maintenance tickets
+- simple operational dashboard
 
-This file defines execution rules for any coding agent working in this repository.
-Read this file together with `implementation.md` and follow both. If there is a conflict, prefer the more restrictive instruction.
+This file is for **Codex execution behavior**.
+Read it together with `implementation.md`.
+
+### Document precedence
+If the repository contains multiple guidance files, apply them in this order:
+1. `AGENTS.md` → execution rules, boundaries, coding behavior, validation behavior
+2. `implementation.md` → product scope, architecture, domain rules, API contract, delivery order
+3. `README.md` → human-oriented project overview and local setup
+
+If a conflict exists, prefer the **more restrictive** instruction.
+Do not widen scope silently.
 
 ---
 
-## Product intent
+## What Codex should optimize for
 
-Build a serious internal business application, not a demo and not a generic CRUD scaffold.
+Build a serious internal business application.
+Do **not** turn the repository into a generic admin scaffold.
 
-The first release must cover only:
-- authentication for internal users
-- lookup management needed by the MVP
-- asset inventory
-- asset details
+Optimize for:
+- maintainability
+- clean layering
+- explicit domain workflows
+- predictable migrations
+- stable API contracts
+- clear validation and authorization
+- reproducible local startup
+
+Avoid optimizing for:
+- flashy UI demos
+- premature framework abstraction
+- speculative enterprise modules outside MVP
+
+---
+
+## Scope guardrails
+
+### In scope for this MVP
+- internal user authentication
+- lookup management required by MVP
+- asset inventory and asset detail
+- asset create/update
 - asset assignment and return workflow
-- asset status and location changes
+- asset status changes
+- asset location changes
 - asset event history
 - asset documents
 - maintenance tickets
-- simple dashboard summaries
+- basic dashboard summaries
+- admin user and role management
 
-Out of scope for this phase:
+### Out of scope
 - multitenancy
 - procurement and contracts
 - software license management
@@ -34,32 +71,33 @@ Out of scope for this phase:
 - CMDB dependency graphs
 - approval workflows
 - external discovery agents
-- advanced reporting beyond the MVP dashboard
+- advanced reporting beyond MVP dashboard
+- external identity provider integration in first pass
 
-Do not silently expand scope.
+If a requested change expands the product surface, stop and ask before implementing it.
 
 ---
 
 ## Architecture rules
 
-The repository is intentionally layered:
-- `database/` for schema, seeds, migrations
-- `backend/` for API and business logic
-- `frontend/` for React UI
-- `docs/` for supporting documentation
+The repository must remain layered:
+- `database/` → schema, migrations, seeds
+- `backend/` → API, services, repositories, auth, tests
+- `frontend/` → React UI only
+- `docs/` → supporting documentation
 
 Respect these boundaries.
 
 ### Database
 Use the database for:
-- schema design
-- referential integrity
+- schema
+- foreign keys
 - unique constraints
 - indexes
-- seed data
+- seed/reference data
 - migrations
 
-Do not move core business workflow into triggers unless there is a strict technical need.
+Do not move core business workflows into triggers unless there is a strict technical need.
 
 ### ORM / persistence
 Use ORM and repositories for:
@@ -69,35 +107,38 @@ Use ORM and repositories for:
 - persistence abstraction
 
 Do not let ORM models become the public API contract.
+Do not leak persistence concerns into the frontend.
 
 ### Backend
 Use the backend for:
 - business rules
 - authorization
-- validation
-- orchestration of workflows
+- input validation
+- workflow orchestration
 - event logging
+- file handling orchestration
 - error handling
 
 Do not place business logic directly in route handlers.
+Route handlers must remain thin.
 
 ### Frontend
 Use the frontend for:
-- user interaction
+- navigation
 - forms
 - tables
 - filters
-- navigation
 - API consumption
+- user feedback states
 
 Do not encode server-side business rules in React.
-The frontend must never depend on database table structure directly.
+The frontend must never depend on table structure directly.
 
 ---
 
 ## Required stack
 
-Follow this stack unless there is a clear technical blocker:
+Use this stack unless there is a strong technical blocker.
 
 ### Backend
 - Python 3.12+
@@ -132,7 +173,7 @@ Do not introduce large frameworks unless they materially simplify delivery.
 
 ---
 
-## Data model boundaries
+## Source-of-truth data model
 
 Current MVP tables in scope:
 - `departments`
@@ -150,14 +191,14 @@ Current MVP tables in scope:
 - `asset_documents`
 - `maintenance_tickets`
 
-Do not redesign the model into a bigger enterprise schema during implementation.
-If an extension is needed, keep it incremental and compatible with the simplified MVP.
+Do not redesign the model into a larger enterprise schema during implementation.
+Any extension must be incremental and compatible with the simplified MVP.
 
 ---
 
-## Core domain rules
+## Mandatory domain rules
 
-These workflow rules are mandatory:
+These workflow rules are not optional:
 - only one open assignment per asset at a time
 - an asset cannot be assigned if status is `RETIRED` or `DISPOSED`
 - assigning an asset updates current assignee and status on `assets`
@@ -167,14 +208,14 @@ These workflow rules are mandatory:
 - asset creation creates an event log entry
 - event history is append-only
 
-Prefer service-layer orchestration for these rules.
+Implement these rules in the **service layer**.
+Do not scatter them across routes or React components.
 
 ---
 
 ## Repository conventions
 
-Expected backend structure:
-
+### Backend structure
 ```text
 backend/app/
   api/
@@ -182,41 +223,52 @@ backend/app/
   core/
   db/
   models/
-  schemas/
   repositories/
-  services/
+  schemas/
   security/
+  services/
   tests/
 ```
 
-Expected frontend structure:
+### Frontend structure
+Use a **feature-first** structure.
 
 ```text
 frontend/src/
   app/
-  api/
+    providers/
+    router/
   components/
+    ui/
+    layout/
   features/
-  hooks/
+    auth/
+    assets/
+    assignments/
+    dashboard/
+    documents/
+    lookups/
+    maintenance/
+    users/
   lib/
-  pages/
   routes/
+  shared/
   types/
 ```
 
-Keep files focused. Avoid mega-files.
+Keep files focused.
+Avoid mega-files and cross-layer shortcuts.
 
-### Backend naming
-- models: singular business names where appropriate
+### Naming rules
+Backend:
 - repositories: `<Entity>Repository`
-- services: `<Entity>Service` or business-specific names
-- schemas: request/response DTO names ending in `Request` / `Response`
+- services: `<Entity>Service` or specific workflow service names
+- schemas: DTO names ending in `Request` / `Response`
 
-### Frontend naming
-- pages: page-level route containers
-- features: business feature modules
-- components: reusable UI components
-- api: HTTP client wrappers and query functions
+Frontend:
+- feature modules own their local API calls, schemas, hooks, and components
+- shared `api/` is allowed only for low-level HTTP transport if needed
+- use the `@/` alias for `frontend/src`
 
 ---
 
@@ -224,11 +276,12 @@ Keep files focused. Avoid mega-files.
 
 Expose clean REST endpoints.
 Do not return raw ORM entities.
-Use dedicated DTOs.
+Use explicit DTOs.
 
-Minimum API areas:
+Minimum areas:
 - auth
-- users and lookup data
+- users
+- lookup data
 - assets
 - assignments
 - asset events
@@ -238,19 +291,20 @@ Minimum API areas:
 
 Requirements:
 - pagination for list endpoints
-- explicit filtering on assets
+- explicit filtering for assets
+- stable response shapes
 - consistent error payloads
 - role checks on write operations
-- stable response shapes
 
-When in doubt, prefer explicit endpoints by use case instead of generic mutation endpoints.
+Prefer explicit endpoints by use case.
 
 Good:
 - `POST /assets/{id}/assign`
 - `POST /assets/{id}/return`
 - `PATCH /assets/{id}/status`
+- `PATCH /assets/{id}/location`
 
-Avoid over-generic designs that leak persistence concepts.
+Avoid over-generic mutation endpoints that leak persistence details.
 
 ---
 
@@ -259,19 +313,19 @@ Avoid over-generic designs that leak persistence concepts.
 These are mandatory:
 - hash passwords with a modern password hasher
 - never store plain-text passwords
-- validate authorization in backend, never trust frontend claims
+- validate authorization in backend, never trust frontend role claims
 - validate and sanitize inputs
 - use ORM parameterization, never build SQL by string concatenation
-- restrict file upload types and size if documents are implemented
+- restrict upload types and size for documents
 - never expose secrets in source code
 - load configuration from environment variables
 
-For the first pass, a simple internal auth model is acceptable:
+Acceptable first-pass auth model:
 - username + password
 - JWT access token
 - role-based authorization
 
-Design authentication in a way that can be replaced or extended later.
+Design auth so it can be replaced later without rewriting the domain.
 
 ---
 
@@ -281,169 +335,96 @@ Design authentication in a way that can be replaced or extended later.
 - prefer explicit code over magic
 - prefer readable code over clever abstractions
 - keep functions small and intention-revealing
-- only abstract after repeated need
-- do not create unnecessary generic frameworks inside the project
+- abstract only after repeated need
+- avoid internal frameworks inside the project
 
 ### Python backend
 - use type hints
 - keep route handlers thin
-- move orchestration to services
-- raise explicit domain or application exceptions
-- keep transactions atomic for multi-step workflows
+- use service layer for orchestration
+- use repository layer for data access
+- raise explicit domain/application exceptions
+- keep multi-step workflows transactional
 - use SQLAlchemy 2 style APIs
 
 ### React frontend
-- use TypeScript strictly
+- use strict TypeScript
 - keep components small
-- prefer feature-oriented composition
+- organize by feature
 - use TanStack Query for server state
 - use React Hook Form + Zod for forms
-- avoid local state duplication of server state unless necessary
+- do not duplicate server state locally without need
 
 ### SQL / migrations
 - migrations must be deterministic and repeatable
-- do not edit applied migrations; create new migrations
-- seed required reference data explicitly
+- never edit applied migrations; create new migrations
+- seed reference data explicitly
 - add indexes for frequent filters and joins
 
 ---
 
-## Logging and observability
+## Validation and delivery behavior for Codex
 
-Implement practical observability, not noise.
+When implementing a feature:
+1. understand the existing boundaries
+2. make the smallest coherent change that solves the problem
+3. preserve naming aligned with business language
+4. keep compatibility where reasonable
+5. update tests and docs when behavior changes
 
-Backend should include:
-- structured logs where practical
-- error logging
-- request correlation ID if simple to add
-
-Do not add heavy observability stacks unless requested.
-
----
-
-## Testing rules
-
-Minimum backend test coverage must include:
-- asset creation
-- asset assignment
-- asset return
-- status change
-- unauthorized access
-- role-based restrictions
-- asset filtering
-
-Minimum frontend test coverage should include:
-- login page render
-- asset list render
-- asset detail render
-- form validation behavior
-
-If time is limited, prioritize backend workflow tests before broader frontend coverage.
-
----
-
-## UX and UI rules
-
-The application is desktop-first and enterprise-focused.
-
-UI principles:
-- prioritize clarity over decoration
-- use simple navigation
-- tables must be readable
-- forms must show validation clearly
-- status should be visible via badges or labels
-- loading and error states must be explicit
-
-Do not produce a flashy dashboard-first demo with weak workflows.
-The operational pages matter more than cosmetic effects.
-
----
-
-## Delivery rules
-
-Preferred implementation order:
-1. repository scaffolding and local runtime
-2. database migrations and seed data
-3. ORM models and repositories
-4. auth and role checks
-5. asset workflows
-6. event log and history
-7. maintenance and documents
-8. dashboard summaries
-9. tests and polish
-10. README and docs
-
-Do not jump straight into frontend polish before backend workflows are stable.
-
----
-
-## Definition of done for agent work
-
-A task is not complete just because code compiles.
-For meaningful feature completion, verify:
+Before claiming a feature is complete, verify:
 - migrations run cleanly
 - API starts and connects to DB
 - frontend builds and runs
 - seed data works
 - auth works with seeded admin
-- major workflow works end-to-end
-- tests relevant to the feature pass
-- no obvious layering violations were introduced
+- the target workflow works end-to-end
+- relevant tests pass
+
+If time is limited, prioritize:
+1. backend domain correctness
+2. API stability
+3. tests for workflows
+4. frontend usability
+5. polish
 
 ---
 
 ## Explicit do-not rules
 
 Do not:
-- convert the project into a generic admin panel generator
+- convert the repo into a generic admin panel generator
 - expose DB schema directly to the frontend
-- put business logic only in React components
+- put business logic only in React
 - put all business logic in API route files
-- implement unnecessary enterprise modules outside scope
 - bypass migrations with manual schema drift
 - mix unrelated refactors into feature work
 - invent new architectural layers without necessity
-- replace practical code with over-engineered patterns
+- widen scope without explicit approval
 
 ---
 
-## Change management rules
+## Comments and authorship
 
-When implementing a feature:
-1. understand the existing layer boundaries
-2. make the smallest coherent change that solves the problem
-3. keep names aligned with business language
-4. preserve backward compatibility where reasonable
-5. update tests and docs when behavior changes
-
-When there is ambiguity:
-- choose the simplest maintainable solution
-- preserve extensibility
-- do not widen scope
-
----
-
-## Authoring and comments
-
-Code comments should be professional, concise, and useful.
+Code comments must be professional, concise, and useful.
 Do not add decorative comments.
-When author attribution is explicitly requested in code comments or headers, use:
+
+When author attribution is explicitly requested in code headers or comments, use:
 - `Author: Salvatore Privitera`
 
-Do not spam author headers in every file unless there is a project convention requiring it.
+Do not spam headers in every file unless the repository adopts that convention explicitly.
 
 ---
 
 ## Expected end state
 
-The final repository should be credible as an internal enterprise asset management starter platform, with:
+The repository must become a credible internal enterprise asset management starter platform with:
 - clean schema and migrations
-- a maintainable FastAPI backend
-- a structured React frontend
+- maintainable FastAPI backend
+- structured React frontend
 - role-based access
 - working asset workflows
-- event history
+- append-only event history
 - maintenance and document handling
 - reproducible local startup
 - useful documentation
-

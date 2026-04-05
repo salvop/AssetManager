@@ -263,6 +263,8 @@ def test_dashboard_summary_includes_operational_lists(client: TestClient, seeded
     assert "assets_ready_for_assignment" in payload
     assert "retired_assets_pending_disposal" in payload
     assert "maintenance_queue" in payload
+    assert "assets_by_location" in payload
+    assert "location_asset_links" in payload
 
 
 def test_employees_list_is_paginated(client: TestClient, seeded_db: Session, auth_headers) -> None:

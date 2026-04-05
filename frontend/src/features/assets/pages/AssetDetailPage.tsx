@@ -12,20 +12,20 @@ import {
   fetchDocumentBlob,
   returnAsset,
   uploadAssetDocument,
-} from "../../../api/assets";
-import { createMaintenanceTicket } from "../../../api/maintenance";
-import { Badge } from "../../../components/ui/badge";
-import { Button } from "../../../components/ui/button";
-import { AssetIcon, MaintenanceIcon, PeopleIcon, PlusIcon, SettingsIcon } from "../../../components/ui/icons";
-import { Input } from "../../../components/ui/input";
-import { PageHeader } from "../../../components/ui/page-header";
-import { Panel } from "../../../components/ui/panel";
-import { Select } from "../../../components/ui/select";
-import { Textarea } from "../../../components/ui/textarea";
-import type { AssetEvent } from "../../../types/api";
-import { useAsset } from "../hooks/useAssets";
-import { useAssetMaintenance } from "../hooks/useAssetMaintenance";
-import { useLookupsBundle } from "../../../hooks/useLookups";
+} from "@/features/assets/api/assets";
+import { createMaintenanceTicket } from "@/features/maintenance/api/maintenance";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { AssetIcon, MaintenanceIcon, PeopleIcon, PlusIcon, SettingsIcon } from "@/components/ui/icons";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { SelectField } from "@/components/ui/select-field";
+import { Textarea } from "@/components/ui/textarea";
+import { useAssetMaintenance } from "@/features/assets/hooks/useAssetMaintenance";
+import { useAsset } from "@/features/assets/hooks/useAssets";
+import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
+import type { AssetEvent } from "@/types/api";
 
 export function AssetDetailPage() {
   const params = useParams();
@@ -420,51 +420,39 @@ export function AssetDetailPage() {
               </div>
               <label htmlFor="assign-employee" className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Assegnatario</span>
-                <Select
-                  id="assign-employee"
-                  name="assign-employee"
+                <SelectField
                   value={selectedEmployeeId}
-                  onChange={(event) => setSelectedEmployeeId(event.target.value)}
-                >
-                  <option value="">Seleziona assegnatario</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.full_name}
-                    </option>
-                  ))}
-                </Select>
+                  onValueChange={setSelectedEmployeeId}
+                  placeholder="Seleziona assegnatario"
+                  options={employees.map((employee) => ({
+                    value: String(employee.id),
+                    label: employee.full_name,
+                  }))}
+                />
               </label>
               <label htmlFor="assign-department" className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Dipartimento</span>
-                <Select
-                  id="assign-department"
-                  name="assign-department"
+                <SelectField
                   value={selectedDepartmentId}
-                  onChange={(event) => setSelectedDepartmentId(event.target.value)}
-                >
-                  <option value="">Nessun dipartimento</option>
-                  {departments.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </Select>
+                  onValueChange={setSelectedDepartmentId}
+                  placeholder="Nessun dipartimento"
+                  options={departments.map((item) => ({
+                    value: String(item.id),
+                    label: item.name,
+                  }))}
+                />
               </label>
               <label htmlFor="assign-location" className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sede assegnazione</span>
-                <Select
-                  id="assign-location"
-                  name="assign-location"
+                <SelectField
                   value={selectedAssignmentLocationId}
-                  onChange={(event) => setSelectedAssignmentLocationId(event.target.value)}
-                >
-                  <option value="">Mantieni sede attuale</option>
-                  {locations.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </Select>
+                  onValueChange={setSelectedAssignmentLocationId}
+                  placeholder="Mantieni sede attuale"
+                  options={locations.map((item) => ({
+                    value: String(item.id),
+                    label: item.name,
+                  }))}
+                />
               </label>
               <Button type="button" disabled={!canAssign} onClick={() => assignMutation.mutate()} className="w-full">
                 {assignMutation.isPending ? "Assegnazione…" : "Assegna asset"}
@@ -496,19 +484,15 @@ export function AssetDetailPage() {
             <div className="space-y-3">
               <label htmlFor="operational-status" className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Stato</span>
-                <Select
-                  id="operational-status"
-                  name="operational-status"
+                <SelectField
                   value={selectedStatusId}
-                  onChange={(event) => setSelectedStatusId(event.target.value)}
-                >
-                  <option value="">Cambia stato</option>
-                  {statuses.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </Select>
+                  onValueChange={setSelectedStatusId}
+                  placeholder="Cambia stato"
+                  options={statuses.map((item) => ({
+                    value: String(item.id),
+                    label: item.name,
+                  }))}
+                />
               </label>
               <Button
                 type="button"
@@ -523,19 +507,15 @@ export function AssetDetailPage() {
 
               <label htmlFor="operational-location" className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Sede</span>
-                <Select
-                  id="operational-location"
-                  name="operational-location"
+                <SelectField
                   value={selectedRelocationLocationId}
-                  onChange={(event) => setSelectedRelocationLocationId(event.target.value)}
-                >
-                  <option value="">Nessuna sede</option>
-                  {locations.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </Select>
+                  onValueChange={setSelectedRelocationLocationId}
+                  placeholder="Nessuna sede"
+                  options={locations.map((item) => ({
+                    value: String(item.id),
+                    label: item.name,
+                  }))}
+                />
               </label>
               <Button
                 type="button"
@@ -688,7 +668,7 @@ function getEventPresentation(event: AssetEvent): {
           ["Assegnatario", getString(details.assigned_employee_name)],
           ["ID assegnatario", getNumber(details.assigned_employee_id)?.toString()],
         ]),
-        note,
+        ...(note ? { note } : {}),
       };
     case "RETURN":
       return {
@@ -696,7 +676,7 @@ function getEventPresentation(event: AssetEvent): {
         title: "Asset rientrato in disponibilita",
         tone: "bg-indigo-100 text-indigo-800",
         rows: [],
-        note,
+        ...(note ? { note } : {}),
       };
     case "STATUS_CHANGE":
       return {
@@ -707,7 +687,7 @@ function getEventPresentation(event: AssetEvent): {
           ["Da", getString(details.from_status)],
           ["A", getString(details.to_status) ?? getString(details.status)],
         ]),
-        note,
+        ...(note ? { note } : {}),
       };
     case "LOCATION_CHANGE":
       return {
@@ -718,7 +698,7 @@ function getEventPresentation(event: AssetEvent): {
           ["Da", getString(details.from_location)],
           ["A", getString(details.to_location)],
         ]),
-        note,
+        ...(note ? { note } : {}),
       };
     case "MAINTENANCE_OPEN":
       return {

@@ -1,21 +1,41 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --brand-50: #f3f7f4;
-  --brand-100: #d8e8dc;
-  --brand-500: #2f6b4f;
-  --brand-600: #24583f;
-  --brand-700: #1e4733;
-  --brand-ring: rgba(47, 107, 79, 0.24);
-  --ink-950: #142019;
-  --surface-0: #f4f4f1;
+  --radius: 1rem;
+  --background: 210 40% 98%;
+  --foreground: 217 33% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 217 33% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 217 33% 10%;
+  --primary: 221 70% 33%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 225 100% 94%;
+  --secondary-foreground: 217 33% 10%;
+  --muted: 214 32% 91%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 213 100% 96%;
+  --accent-foreground: 217 33% 10%;
+  --destructive: 350 84% 52%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 219 76% 53%;
+  --brand-50: #eef4ff;
+  --brand-100: #d9e6ff;
+  --brand-500: #2f70ff;
+  --brand-600: #1f56db;
+  --brand-700: #1a45b1;
+  --brand-ring: rgba(47, 112, 255, 0.22);
+  --ink-950: #10213d;
+  --surface-0: #f4f7fc;
   --surface-1: #ffffff;
-  --surface-2: #f7f7f4;
-  --line-soft: rgba(20, 32, 25, 0.08);
+  --surface-2: #f7f9fd;
+  --line-soft: rgba(16, 33, 61, 0.08);
   --status-success-bg: #dcfce7;
   --status-success-fg: #166534;
   --status-info-bg: #dbeafe;
@@ -29,13 +49,13 @@
 }
 
 html {
-  background: var(--surface-0);
+  background: hsl(var(--background));
 }
 
 body {
-  font-family: "Manrope", "Segoe UI", sans-serif;
-  color: var(--ink-950);
-  background: var(--surface-0);
+  font-family: "Inter", "Geist Sans", "Segoe UI", sans-serif;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
   min-height: 100vh;
 }
 
@@ -49,13 +69,13 @@ h2 {
 }
 
 ::selection {
-  background: rgba(47, 107, 79, 0.18);
-  color: var(--ink-950);
+  background: rgba(47, 112, 255, 0.18);
+  color: hsl(var(--foreground));
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(36, 88, 63, 0.4) transparent;
+  scrollbar-color: rgba(26, 69, 177, 0.3) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -64,22 +84,22 @@ h2 {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(36, 88, 63, 0.22);
+  background: rgba(26, 69, 177, 0.22);
   border-radius: 999px;
 }
 
 .app-panel {
   border-radius: 28px;
-  border: 1px solid var(--line-soft);
-  background: var(--surface-1);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
   padding: 1.5rem;
   box-shadow: 0 10px 26px rgba(20, 32, 25, 0.04);
 }
 
 .app-panel-strong {
   border-radius: 32px;
-  border: 1px solid rgba(20, 32, 25, 0.08);
-  background: var(--surface-1);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
   padding: 2rem;
   box-shadow: 0 18px 42px rgba(20, 32, 25, 0.05);
 }
@@ -92,8 +112,8 @@ h2 {
   .app-input {
     width: 100%;
     border-radius: 1rem;
-    border: 1px solid rgb(203 213 225);
-    background: #fff;
+    border: 1px solid hsl(var(--input));
+    background: hsl(var(--background));
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
@@ -106,12 +126,23 @@ h2 {
 
   .app-input:focus-visible {
     outline: none;
-    border-color: var(--brand-500);
-    box-shadow: 0 0 0 4px var(--brand-ring);
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px var(--brand-ring);
   }
 
   .app-input:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+  }
+
+  select.app-input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 2.75rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M6 8L10 12L14 8' stroke='%23334155' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 1rem;
+    background-position: right 1.2rem center;
   }
 }

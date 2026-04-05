@@ -23,7 +23,7 @@ class AppSetting(TimestampMixin, Base):
     __tablename__ = "app_settings"
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
-    org_name: Mapped[str] = mapped_column(String(120), nullable=False, server_default="Asset Manager")
+    org_name: Mapped[str] = mapped_column(String(120), nullable=False, server_default="OpsAsset")
     default_asset_status_on_create_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("asset_statuses.id"),

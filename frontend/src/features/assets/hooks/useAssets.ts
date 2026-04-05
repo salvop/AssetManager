@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getAsset, getAssets } from "../../../api/assets";
+import { getAsset, getAssets } from "@/features/assets/api/assets";
 
 type UseAssetsFilters = {
   search?: string;

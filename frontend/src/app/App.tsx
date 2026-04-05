@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { AppRoutes } from "../routes/AppRoutes";
-import { onSessionExpired } from "../lib/session";
+import { AppRoutes } from "@/app/router";
+import { onSessionExpired } from "@/lib/session";
 
 export function App() {
   const navigate = useNavigate();

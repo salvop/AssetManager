@@ -50,7 +50,7 @@ class EmailNotificationService:
                 f"L'asset {asset.asset_tag} - {asset.name} e stato assegnato a {target_employee.full_name}.",
                 f"Assegnato da: {assigned_by_user.full_name}",
                 "",
-                "Accedi al sistema Asset Manager per verificare i dettagli operativi.",
+                "Accedi al sistema OpsAsset per verificare i dettagli operativi.",
             ]
         )
         self._safe_send(recipients=recipients, subject=subject, body=body)
@@ -83,7 +83,7 @@ class EmailNotificationService:
                 f"Titolo: {ticket.title}",
                 f"Stato iniziale: {ticket.status}",
                 "",
-                "Accedi al sistema Asset Manager per prendere in carico il ticket.",
+                "Accedi al sistema OpsAsset per prendere in carico il ticket.",
             ]
         )
         self._safe_send(recipients=recipients, subject=subject, body=body)
@@ -102,7 +102,7 @@ class EmailNotificationService:
                 f"Il ticket di manutenzione '{ticket.title}' relativo all'asset {asset.asset_tag} - {asset.name} e stato aggiornato.",
                 f"Nuovo stato: {ticket.status}",
                 "",
-                "Accedi al sistema Asset Manager per consultare i dettagli e le azioni successive.",
+                "Accedi al sistema OpsAsset per consultare i dettagli e le azioni successive.",
             ]
         )
         self._safe_send(recipients=recipients, subject=subject, body=body)

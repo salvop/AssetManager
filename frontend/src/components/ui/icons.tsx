@@ -73,6 +73,16 @@ export function MaintenanceIcon(props: IconProps) {
   );
 }
 
+export function AssetRequestIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <rect x="4" y="3" width="16" height="18" rx="2.5" />
+      <path d="M8 8h8M8 12h5" />
+      <path d="M16 15v4M14 17h4" />
+    </BaseIcon>
+  );
+}
+
 export function PreferencesIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>

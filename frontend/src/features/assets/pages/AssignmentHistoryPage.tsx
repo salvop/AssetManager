@@ -1,8 +1,8 @@
 import { Link, useParams } from "react-router-dom";
 
-import { PageHeader } from "../../../components/ui/page-header";
-import { Panel } from "../../../components/ui/panel";
-import { useAsset } from "../hooks/useAssets";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { useAsset } from "@/features/assets/hooks/useAssets";
 
 export function AssignmentHistoryPage() {
   const params = useParams();

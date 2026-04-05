@@ -10,6 +10,8 @@ from app.models.lookup import AssetStatus, Location
 from app.models.maintenance import MaintenanceTicket
 from app.schemas.dashboard import (
     DashboardAssignmentAlertResponse,
+    DashboardLocationAssetCountResponse,
+    DashboardLocationAssetLinkResponse,
     DashboardNotificationResponse,
     DashboardLifecycleAlertResponse,
     DashboardRecentAssetResponse,
@@ -135,6 +137,37 @@ class DashboardService:
             .where(MaintenanceTicket.closed_at.is_(None))
             .order_by(MaintenanceTicket.opened_at.asc())
             .limit(6)
+        ).all()
+        location_rows = self.db.execute(
+            select(
+                Location.id,
+                Location.code,
+                Location.name,
+                func.count(Asset.id),
+            )
+            .select_from(Location)
+            .join(Asset, Asset.location_id == Location.id, isouter=True)
+            .group_by(Location.id, Location.code, Location.name)
+            .order_by(func.count(Asset.id).desc(), Location.name.asc())
+        ).all()
+        unassigned_location_total = self.db.scalar(
+            select(func.count()).select_from(Asset).where(Asset.location_id.is_(None))
+        ) or 0
+        location_asset_rows = self.db.execute(
+            select(
+                Location.id,
+                Location.code,
+                Location.name,
+                Asset.id,
+                Asset.asset_tag,
+                Asset.name,
+                AssetStatus.code,
+            )
+            .select_from(Asset)
+            .join(AssetStatus, AssetStatus.id == Asset.status_id)
+            .join(Location, Location.id == Asset.location_id, isouter=True)
+            .order_by(func.coalesce(Location.name, "Sede non assegnata").asc(), Asset.asset_tag.asc())
+            .limit(180)
         ).all()
         assignment_candidates = self.db.execute(
             select(
@@ -323,5 +356,38 @@ class DashboardService:
                     opened_days=(today - row[6].date()).days,
                 )
                 for row in maintenance_queue_rows
+            ],
+            assets_by_location=[
+                DashboardLocationAssetCountResponse(
+                    location_id=row[0],
+                    location_code=row[1],
+                    location_name=row[2],
+                    total=row[3],
+                )
+                for row in location_rows
+            ]
+            + (
+                [
+                    DashboardLocationAssetCountResponse(
+                        location_id=None,
+                        location_code="UNASSIGNED",
+                        location_name="Sede non assegnata",
+                        total=unassigned_location_total,
+                    )
+                ]
+                if unassigned_location_total > 0
+                else []
+            ),
+            location_asset_links=[
+                DashboardLocationAssetLinkResponse(
+                    location_id=row[0],
+                    location_code=row[1] or "UNASSIGNED",
+                    location_name=row[2] or "Sede non assegnata",
+                    asset_id=row[3],
+                    asset_tag=row[4],
+                    asset_name=row[5],
+                    status_code=row[6],
+                )
+                for row in location_asset_rows
             ],
         )

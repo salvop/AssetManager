@@ -1,148 +1,105 @@
-# IMPLEMENTATION.md
+# implementation.md
 
 ## Objective
 
-Build an enterprise-ready but pragmatic **Asset Manager** web application based on the simplified data model already defined for MariaDB/MySQL.
+Build **OpsAsset**, an enterprise-ready but pragmatic web application for internal asset management based on a **simplified MariaDB/MySQL schema**.
 
-The application must be structured in four clear layers:
+The application must be built as four clean layers:
+1. **Database** → schema, indexes, seeds, migrations
+2. **ORM / Persistence** → SQLAlchemy models, repositories, transaction handling
+3. **Backend** → Python API, business rules, authorization, workflow orchestration
+4. **Frontend** → React application for inventory and operational workflows
 
-1. **Database**: MariaDB/MySQL schema, migrations, seed data.
-2. **ORM / Persistence**: SQLAlchemy models, repositories, transaction handling.
-3. **Backend**: Python API with business logic and role-based authorization.
-4. **Frontend**: React application for inventory, assignments, maintenance, and reporting.
-
-This is **not** a generic CRUD generator task. The result must be a maintainable, layered application with explicit domain workflows.
-
----
-
-## Product Scope
-
-The first release must cover these business capabilities:
-
-### Core asset inventory
-- Create and update assets
-- Search and filter assets
-- View asset details
-- Track asset status
-- Track current location
-- Track current assignment
-
-### Assignment lifecycle
-- Assign asset to a user
-- Return asset
-- Move asset between locations/departments
-- Keep assignment history
-
-### Event history
-- Track important lifecycle events in `asset_event_log`
-- Track create, update, assign, return, status change, and location change
-
-### Documentation
-- Upload and list documents for an asset
-- Support basic metadata for documents
-
-### Maintenance
-- Open maintenance tickets
-- Update ticket status
-- Close ticket
-- Link ticket to vendor and asset
-
-### Access control
-- Application roles:
-  - `ADMIN`
-  - `ASSET_MANAGER`
-  - `OPERATOR`
-  - `VIEWER`
-
-Do **not** implement advanced procurement, software license management, multitenancy, CMDB dependencies, or custom dynamic fields in this phase.
+This is **not** a generic CRUD generator task.
+The result must be a maintainable application with explicit business workflows.
 
 ---
 
-## Target Architecture
+## Single-source design decisions
 
-Use this structure.
+These decisions are part of the implementation contract.
 
-```text
-project-root/
-  database/
-    ddl/
-    seeds/
-    migrations/
-  backend/
-    app/
-      api/
-      core/
-      domain/
-      services/
-      repositories/
-      db/
-      schemas/
-      models/
-      security/
-      tests/
-    alembic/
-    pyproject.toml
-  frontend/
-    src/
-      app/
-      api/
-      components/
-      features/
-      pages/
-      hooks/
-      lib/
-      types/
-      routes/
-    package.json
-  docs/
-  docker-compose.yml
-  README.md
-```
+### Product scope decision
+The first release is an **operational asset manager**, to became a full CMDB or ITAM suite.
 
-### Layer responsibilities
+### Architecture decision
+The system must remain layered and loosely coupled:
+- frontend depends on API, not DB
+- backend depends on repositories/services, not UI
+- ORM is a persistence adapter, not the domain contract
+- DB provides persistence and integrity, not workflow orchestration
 
-#### Database
-Responsible for:
-- schema
-- indexes
-- foreign keys
-- unique constraints
-- seed data
-- migrations
-
-#### ORM / Persistence
-Responsible for:
-- SQLAlchemy models
-- mapping DB tables to Python classes
-- repository implementations
-- unit-of-work / transaction boundaries
-
-#### Backend
-Responsible for:
-- business rules
-- validation
-- authorization
-- workflows
-- audit/event writing
-- API contracts
-
-#### Frontend
-Responsible for:
-- UI
-- forms
-- tables
-- filters
-- navigation
-- optimistic UX where safe
-- consuming the API only
-
-The frontend must never depend on database structure directly.
+### Data model decision
+Use the **simplified schema** only.
+Do not expand into procurement, contracts, software licensing, multitenancy, or dynamic custom fields in this phase.
 
 ---
 
-## Required Technology Choices
+## Product scope
 
-Use the following stack unless there is a strong technical reason not to:
+### In scope
+
+#### Core asset inventory
+- create asset
+- update asset
+- search and filter assets
+- view asset details
+- track asset status
+- track current location
+- track current assignment
+
+#### Assignment lifecycle
+- assign asset to user
+- return asset
+- track assignment history
+- optionally update department/location during assignment if part of the workflow
+
+#### Event history
+- write lifecycle events in `asset_event_log`
+- track create, update, assign, return, status change, and location change
+
+#### Documentation
+- upload documents for an asset
+- list and download documents
+- delete documents with authorization checks
+- store metadata in DB and file payloads via a storage abstraction
+
+#### Maintenance
+- open maintenance ticket
+- update ticket
+- change ticket status
+- close ticket
+- link ticket to asset and optional vendor
+
+#### Access control
+Application roles:
+- `ADMIN`
+- `ASSET_MANAGER`
+- `OPERATOR`
+- `VIEWER`
+
+#### Dashboard
+Simple operational summary only:
+- total assets
+- assets by status
+- assigned assets count
+- open maintenance tickets count
+- recent assets / recent tickets
+
+### Out of scope
+- multitenancy
+- procurement and contracts
+- software license management
+- custom dynamic fields
+- CMDB dependency graphs
+- approval workflows
+- external discovery agents
+- advanced reporting beyond MVP dashboard
+- SSO / IdP integration in first pass
+
+---
+
+## Required stack
 
 ### Backend
 - Python 3.12+
@@ -168,18 +125,111 @@ Use the following stack unless there is a strong technical reason not to:
 - MariaDB preferred
 - MySQL-compatible SQL where practical
 
-### Dev / Ops
-- Docker and docker-compose
-- `.env` based configuration
+### Runtime / local dev
+- Docker
+- docker-compose
+- `.env` configuration
 
-If a package is optional, prefer fewer dependencies.
+Prefer fewer dependencies.
 
 ---
 
-## Database Scope to Implement
+## Target repository structure
 
-Use the simplified schema already designed. The following tables are in scope:
+```text
+project-root/
+  database/
+    ddl/
+    seeds/
+    migrations/
+  backend/
+    app/
+      api/
+        routes/
+      core/
+      db/
+      models/
+      repositories/
+      schemas/
+      security/
+      services/
+      tests/
+    alembic/
+    pyproject.toml
+  frontend/
+    src/
+      app/
+        providers/
+        router/
+      components/
+        ui/
+        layout/
+      features/
+        auth/
+        assets/
+        assignments/
+        dashboard/
+        documents/
+        lookups/
+        maintenance/
+        users/
+      lib/
+      routes/
+      shared/
+      types/
+    package.json
+  docs/
+  docker-compose.yml
+  README.md
+  AGENTS.md
+  implementation.md
+```
 
+### Layer responsibilities
+
+#### Database
+Responsible for:
+- schema
+- indexes
+- foreign keys
+- unique constraints
+- seed data
+- migrations
+
+#### ORM / persistence
+Responsible for:
+- mapping DB tables to Python classes
+- repositories
+- transaction boundaries
+- persistence abstractions
+
+#### Backend
+Responsible for:
+- business rules
+- validation
+- authorization
+- workflows
+- audit/event writing
+- API contracts
+- storage orchestration
+
+#### Frontend
+Responsible for:
+- UI
+- forms
+- tables
+- filters
+- navigation
+- API consumption only
+
+The frontend must never depend on the database structure directly.
+Do not expose ORM entities directly as API contracts.
+
+---
+
+## Database scope to implement
+
+Use only these tables for MVP:
 - `departments`
 - `users`
 - `roles`
@@ -196,9 +246,6 @@ Use the simplified schema already designed. The following tables are in scope:
 - `maintenance_tickets`
 
 ### Mandatory DB rules
-
-Implement and respect these constraints:
-
 - `users.username` unique
 - `roles.code` unique
 - `departments.code` unique
@@ -208,47 +255,44 @@ Implement and respect these constraints:
 - `assets.asset_tag` unique
 - `user_roles (user_id, role_id)` unique
 - foreign keys on all reference columns
-- reasonable indexes for filters and joins
+- indexes for common filters and joins
 
-### Business constraints enforced in backend logic
-
-At minimum:
+### Business rules enforced in backend
 - only one open assignment per asset at a time
 - asset cannot be assigned if status is `RETIRED` or `DISPOSED`
 - returning an asset closes the current assignment
-- assigning an asset updates current status and current assignee on `assets`
-- changing location creates an event log entry
-- changing status creates an event log entry
-- creating an asset creates an event log entry
+- assigning an asset updates current assignee and status on `assets`
+- changing location writes an event log entry
+- changing status writes an event log entry
+- creating an asset writes a `CREATE` event log entry
 
-Use backend logic for workflow rules, not DB triggers, unless strictly needed.
+Use backend services for workflow rules.
+Do not rely on DB triggers for MVP business logic.
 
 ---
 
-## Domain Model Expectations
-
-The system is centered on these concepts:
+## Domain model expectations
 
 ### User
-Represents an internal actor that can log in and/or receive assets.
+Internal actor that can log in and/or receive assets.
 
 ### Role
-Represents application authorization level.
+Application authorization level.
 
 ### Department
-Represents business ownership or organizational grouping.
+Business ownership or organizational grouping.
 
 ### Location
-Represents a physical site, area, or nested location. Keep support for parent-child hierarchy.
+Physical site, area, or nested location with parent-child support.
 
 ### Vendor
-Represents supplier or maintenance provider.
+Supplier or maintenance provider.
 
 ### AssetCategory
-High-level classification: laptop, desktop, monitor, server, phone, etc.
+High-level classification such as laptop, desktop, monitor, phone, printer, server.
 
 ### AssetModel
-Catalog record for model definition.
+Catalog-level definition for a model.
 
 ### AssetStatus
 Controlled lifecycle state.
@@ -257,7 +301,7 @@ Controlled lifecycle state.
 Primary managed object.
 
 ### AssetAssignment
-Historical record of assignment lifecycle.
+Historical assignment lifecycle record.
 
 ### AssetEventLog
 Immutable operational history.
@@ -270,26 +314,25 @@ Operational issue / maintenance workflow.
 
 ---
 
-## API Design Requirements
+## API design requirements
 
-Implement REST API endpoints with clear DTOs. Do not expose ORM entities directly.
+Implement REST endpoints with explicit DTOs.
+Do not expose ORM entities directly.
 
 ### Authentication
-You may start with a simple local authentication model suitable for internal business apps:
+First-pass local auth is acceptable:
 - username + password
 - JWT access token
 - hashed password storage
 
-If full auth is not completed in the first pass, scaffold it cleanly and protect the architecture for later completion.
-
 ### Authorization
-Enforce role-based access in backend route dependencies and service layer.
+Enforce role-based access in backend dependencies **and** service layer where needed.
 
 Suggested access model:
-- `ADMIN`: full access
-- `ASSET_MANAGER`: full asset operations, assignments, maintenance, documents
-- `OPERATOR`: limited create/update operations on assets, assignments, maintenance, documents
-- `VIEWER`: read-only
+- `ADMIN` → full access
+- `ASSET_MANAGER` → full asset operations, assignments, maintenance, documents, lookups
+- `OPERATOR` → limited create/update operational actions
+- `VIEWER` → read-only
 
 ### Minimum endpoints
 
@@ -297,9 +340,11 @@ Suggested access model:
 - `POST /auth/login`
 - `GET /auth/me`
 
-#### Users and lookup data
+#### Users and lookups
 - `GET /users`
 - `GET /users/{id}`
+- `POST /users`
+- `PUT /users/{id}`
 - `GET /departments`
 - `GET /locations`
 - `GET /vendors`
@@ -326,6 +371,7 @@ Suggested access model:
 #### Documents
 - `GET /assets/{id}/documents`
 - `POST /assets/{id}/documents`
+- `GET /documents/{id}/download`
 - `DELETE /documents/{id}`
 
 #### Maintenance
@@ -335,9 +381,11 @@ Suggested access model:
 - `PUT /maintenance-tickets/{id}`
 - `PATCH /maintenance-tickets/{id}/status`
 
-### Filtering requirements for `GET /assets`
+#### Dashboard
+- `GET /dashboard/summary`
 
-Support these query parameters where relevant:
+### Asset filtering requirements
+`GET /assets` should support:
 - `search`
 - `status_id`
 - `category_id`
@@ -355,10 +403,11 @@ Return paginated results.
 
 ---
 
-## Backend Implementation Rules
+## Backend implementation rules
 
 ### Code organization
-Use a service-oriented backend, not route-level business logic.
+Use a service-oriented backend.
+Do not place business rules inside route handlers.
 
 Expected structure:
 
@@ -370,52 +419,47 @@ backend/app/
     config.py
     exceptions.py
   db/
-    session.py
     base.py
+    session.py
   models/
-    *.py
-  schemas/
-    *.py
   repositories/
-    *.py
-  services/
-    *.py
+  schemas/
   security/
     auth.py
-    passwords.py
     deps.py
+    passwords.py
+  services/
   tests/
 ```
 
-### Mandatory service classes
-Implement at least:
+### Minimum services
+- `AuthService`
+- `LookupService`
 - `AssetService`
 - `AssignmentService`
+- `AssetEventService`
 - `MaintenanceTicketService`
-- `LookupService`
-- `AuthService`
+- `DocumentService`
 
-### Repository usage
-Use repository classes to isolate persistence details.
-
-At minimum:
-- `AssetRepository`
-- `AssignmentRepository`
+### Minimum repositories
 - `UserRepository`
 - `LookupRepository`
+- `AssetRepository`
+- `AssignmentRepository`
 - `MaintenanceTicketRepository`
+- `DocumentRepository`
 
 ### Transaction handling
-Complex operations must be atomic.
-
-Examples:
-- asset assignment
-- asset return
-- status change with event log
-- asset creation with initial event log
+These operations must be atomic:
+- asset creation + initial event log
+- asset assignment + asset update + event log
+- asset return + asset update + event log
+- asset status change + event log
+- asset location change + event log
+- document create/delete metadata changes
 
 ### Event logging
-Centralize event creation in a reusable helper or service.
+Centralize event creation in a reusable helper/service.
 Do not duplicate event-writing logic across endpoints.
 
 Suggested helper:
@@ -423,31 +467,31 @@ Suggested helper:
 
 ---
 
-## Frontend Implementation Rules
+## Frontend implementation rules
 
 The frontend must be a serious business UI, not a demo.
 
-### Main sections
-Implement these pages:
+### Main routes/pages
 - Login
 - Dashboard
 - Asset List
 - Asset Detail
 - Asset Create/Edit
-- Assignment History
 - Maintenance Ticket List
 - Maintenance Ticket Detail
-- Lookup Management placeholder pages if needed
+- Admin Users
+- Lookup management pages
 
-### Asset List requirements
+### Asset list requirements
 - table with pagination
-- filters sidebar or toolbar
 - search box
-- status/category/location filters
-- clickable rows to detail page
-- visible badge for status
+- filters for status/category/location and related lookups
+- sortable columns where useful
+- visible status badge
+- row navigation to detail page
+- explicit loading, empty, and error states
 
-### Asset Detail requirements
+### Asset detail requirements
 Show at least:
 - general information
 - current status
@@ -456,15 +500,16 @@ Show at least:
 - assignment history
 - event history
 - documents list
-- maintenance tickets list
+- maintenance list
 - actions: assign, return, change status, change location
 
 ### Forms
 Use React Hook Form + Zod.
-Provide client validation and meaningful server error display.
+All forms must show meaningful validation and backend error states.
 
 ### Data access
 Use TanStack Query for:
+- data fetching
 - caching
 - mutations
 - invalidation
@@ -472,14 +517,15 @@ Use TanStack Query for:
 - error states
 
 ### UI standards
-- clean enterprise styling
-- responsive but desktop-first
+- desktop-first
+- clear enterprise styling
 - avoid visual gimmicks
-- favor clarity over animation
+- clarity over animation
+- reusable table and form patterns
 
 ---
 
-## Important Business Workflows
+## Important business workflows
 
 ### 1. Create asset
 When creating an asset:
@@ -493,25 +539,25 @@ When assigning an asset:
 - verify asset exists
 - verify target user exists
 - verify asset is assignable
-- close any invalid previous open assignment if necessary only through explicit controlled logic
+- verify there is no other open assignment
 - create new assignment row
 - update `assets.assigned_user_id`
-- update `assets.current_department_id` if supplied
-- optionally update location
+- update `assets.current_department_id` if part of request
+- optionally update location if part of request
 - set status to `ASSIGNED`
 - create `ASSIGN` event log entry
 
 ### 3. Return asset
 When returning an asset:
 - find current open assignment
-- set `returned_at`
+- close it by setting `returned_at`
 - clear `assets.assigned_user_id`
-- set status to `IN_STOCK` or another agreed operational status
+- set status to `IN_STOCK` or other approved operational default
 - create `RETURN` event log entry
 
 ### 4. Change status
 When changing status:
-- validate transition
+- validate transition if transition rules exist
 - update asset
 - create `STATUS_CHANGE` event with old/new values
 
@@ -524,15 +570,22 @@ When changing location:
 When opening a ticket:
 - validate asset and optional vendor
 - create ticket
-- create optional asset event if linked to asset lifecycle history
+- optionally create asset lifecycle event if the workflow needs it
+
+### 7. Upload document
+When uploading a document:
+- validate asset exists
+- validate content type and size
+- persist file via storage abstraction
+- write metadata to DB
+- return document DTO
 
 ---
 
 ## Suggested DTOs
 
 Implement separate request/response models.
-
-### Examples
+Examples:
 - `LoginRequest`
 - `LoginResponse`
 - `AssetCreateRequest`
@@ -544,66 +597,28 @@ Implement separate request/response models.
 - `AssetStatusChangeRequest`
 - `AssetLocationChangeRequest`
 - `AssetEventResponse`
+- `DocumentResponse`
 - `MaintenanceTicketCreateRequest`
 - `MaintenanceTicketResponse`
+- `DashboardSummaryResponse`
 
 Do not leak internal ORM fields.
 
 ---
 
-## Non-Functional Requirements
+## File upload notes
 
-### Maintainability
-- strong typing in backend and frontend
-- clear file/module boundaries
-- avoid circular dependencies
-- keep logic out of controllers/routes
+For MVP, `asset_documents` can use **local disk storage** with an abstraction layer so storage can later be swapped to S3 or equivalent.
 
-### Security
-- hash passwords with a modern algorithm
-- validate authorization on write operations
-- validate uploaded file metadata
-- never trust frontend role claims
-- sanitize and validate all inputs
-- use parameterized ORM queries only
-
-### Observability
-- structured application logs
-- error logging in backend
-- request correlation ID if practical
-
-### Performance
-- paginate large lists
-- avoid N+1 query problems
-- add indexes for hot filters
-- select only required columns for list views where practical
+Requirements:
+- store file metadata in DB
+- enforce allowed file types if feasible
+- enforce size limits
+- isolate storage logic behind a small service boundary
 
 ---
 
-## Testing Requirements
-
-### Backend tests
-At minimum implement tests for:
-- asset creation
-- asset assignment
-- asset return
-- status change
-- unauthorized access
-- role-based access restrictions
-- asset list filtering
-
-### Frontend tests
-At minimum implement basic tests for:
-- login page rendering
-- asset list rendering
-- asset detail rendering
-- form validation behavior
-
-If full frontend test coverage is not reached, prioritize backend workflow tests first.
-
----
-
-## Seed Data Requirements
+## Seed data requirements
 
 Provide initial seed data for:
 - roles
@@ -612,6 +627,7 @@ Provide initial seed data for:
 - at least one admin user
 - a few departments
 - a few locations
+- optionally a small set of vendors and models for demo/dev use
 
 Suggested statuses:
 - `IN_STOCK`
@@ -630,9 +646,59 @@ Suggested categories:
 
 ---
 
-## Delivery Order
+## Non-functional requirements
 
-Implement in this order.
+### Maintainability
+- strong typing in backend and frontend
+- clear module boundaries
+- avoid circular dependencies
+- keep logic out of controllers/routes
+
+### Security
+- modern password hashing
+- backend authorization on all write operations
+- validate uploaded file metadata
+- never trust frontend role claims
+- parameterized ORM queries only
+- configuration from environment variables
+
+### Observability
+- practical structured logs
+- backend error logging
+- request correlation ID if simple to add
+
+### Performance
+- paginate lists
+- avoid N+1 query problems
+- add indexes for hot filters
+- fetch only required fields for list views where practical
+
+---
+
+## Testing requirements
+
+### Backend tests
+At minimum implement tests for:
+- asset creation
+- asset assignment
+- asset return
+- status change
+- unauthorized access
+- role-based restrictions
+- asset filtering
+
+### Frontend tests
+At minimum implement tests for:
+- login page render
+- asset list render
+- asset detail render
+- form validation behavior
+
+If time is limited, prioritize backend workflow tests first.
+
+---
+
+## Delivery order
 
 ### Phase 1: foundation
 - project scaffolding
@@ -644,7 +710,7 @@ Implement in this order.
 - frontend scaffolding
 
 ### Phase 2: schema and persistence
-- migrations for all core tables
+- migrations for core tables
 - ORM models
 - repository layer
 - seed data
@@ -657,93 +723,54 @@ Implement in this order.
 
 ### Phase 4: core asset workflows
 - asset CRUD
-- list filters
+- asset list filters
 - assignment workflow
 - event log
-- location/status update
+- status/location changes
 
 ### Phase 5: supporting modules
 - documents
 - maintenance tickets
-- dashboard summary endpoints
+- dashboard summary endpoint
+- admin users / lookup management as needed for MVP usability
 
 ### Phase 6: polish
 - validation hardening
 - tests
 - DX improvements
-- README
+- docs
 
 ---
 
-## Dashboard Expectations
+## Definition of done
 
-Implement a basic dashboard endpoint and frontend page showing:
-- total assets
-- assets by status
-- assigned assets
-- maintenance open tickets
-- recently updated assets
-
-Keep this simple but useful.
-
----
-
-## File Upload Notes
-
-For `asset_documents`, the first implementation can use local disk storage with an abstraction so storage can later be swapped to S3 or another backend.
-
-Requirements:
-- store file metadata in DB
-- enforce allowed file types if feasible
-- enforce size limits
-- keep storage abstraction simple
-
----
-
-## Coding Standards
-
-### General
-- prefer explicit code over magic
-- keep functions small and named by business intent
-- avoid over-engineering
-- no premature abstraction without repeated need
-
-### Backend
-- use type hints
-- use docstrings sparingly where value exists
-- handle domain errors with explicit exceptions
-- return consistent API error shapes
-
-### Frontend
-- feature-based folder grouping is acceptable
-- avoid giant page components
-- extract forms and table components when reused
-
----
-
-## Definition of Done
-
-This task is done only when all these are true:
-
-1. project boots locally with docker-compose
-2. backend starts successfully and connects to DB
+A feature is complete only when:
+1. migrations run cleanly
+2. backend starts and connects to DB
 3. frontend starts successfully
-4. database migrations run cleanly
-5. seed data loads cleanly
-6. login works with seeded admin user
-7. asset list page works with filters and pagination
-8. asset detail page works
-9. assignment and return workflows work end-to-end
-10. status and location changes produce event logs
-11. maintenance ticket CRUD works at MVP level
-12. basic tests pass
-13. README explains how to run the project
+4. seed data loads successfully
+5. login works with seeded admin
+6. target workflow works end-to-end
+7. relevant tests pass
+8. docs are updated when behavior changes
+
+The project milestone is complete only when:
+1. `docker-compose` boots required services
+2. DB migrations and seeds work from a clean environment
+3. asset list page works with filters and pagination
+4. asset detail page works
+5. assignment and return workflows work end-to-end
+6. status and location changes produce event logs
+7. maintenance ticket MVP works
+8. document upload/list/download/delete works
+9. basic tests pass
+10. README explains how to run the repository
 
 ---
 
-## Explicit Do-Not Rules
+## Explicit do-not rules
 
-Do **not**:
+Do not:
 - build a generic admin panel and stop there
 - expose raw DB tables directly to the frontend
 - put business logic only in React
@@ -752,29 +779,15 @@ Do **not**:
 - skip migrations
 - skip seed data
 - collapse assignment history into a single column on `assets`
-- implement unnecessary advanced modules outside scope
+- implement out-of-scope enterprise modules
 
 ---
 
-## If Ambiguity Appears
+## Ambiguity rule
 
-If there is an unclear implementation choice:
+If an implementation detail is unclear:
 1. prefer the simplest maintainable solution
 2. keep layering clean
 3. preserve future extensibility
-4. do not widen scope beyond the MVP described here
-
----
-
-## Final Expected Output
-
-The final result must be a working repository containing:
-- database migrations
-- backend API
-- frontend app
-- seed scripts
-- tests
-- Docker setup
-- documentation
-
-The application must be credible as an internal enterprise asset management starter platform.
+4. do not widen scope beyond this MVP
+5. if ambiguity affects business behavior or data contracts materially, ask before proceeding

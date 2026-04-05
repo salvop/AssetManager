@@ -437,6 +437,21 @@ export type DashboardSummary = {
     opened_at: string;
     opened_days: number;
   }>;
+  assets_by_location: Array<{
+    location_id: number | null;
+    location_code: string;
+    location_name: string;
+    total: number;
+  }>;
+  location_asset_links: Array<{
+    location_id: number | null;
+    location_code: string;
+    location_name: string;
+    asset_id: number;
+    asset_tag: string;
+    asset_name: string;
+    status_code: string;
+  }>;
 };
 
 export type UserPreferences = {
@@ -471,3 +486,42 @@ export type AppSettingsPayload = Partial<{
   max_document_size_mb: number;
   allowed_document_mime_types: string[];
 }>;
+
+export type AssetRequest = {
+  id: number;
+  requested_by_user: UserReference;
+  requested_for_employee: EmployeeReference | null;
+  department: LookupReference | null;
+  category: LookupReference;
+  suggested_model: LookupReference | null;
+  suggested_vendor: LookupReference | null;
+  priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  business_justification: string | null;
+  status: "PENDING_APPROVAL" | "APPROVED" | "REJECTED";
+  approved_by_user: UserReference | null;
+  approval_notes: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  created_at: string;
+};
+
+export type AssetRequestListResponse = {
+  items: AssetRequest[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type AssetRequestCreatePayload = {
+  requested_for_employee_id?: number | null;
+  department_id?: number | null;
+  category_id: number;
+  suggested_model_id?: number | null;
+  suggested_vendor_id?: number | null;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  business_justification: string;
+};
+
+export type AssetRequestApprovePayload = {
+  approval_notes?: string | null;
+};

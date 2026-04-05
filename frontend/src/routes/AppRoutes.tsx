@@ -1,49 +1,52 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import { getAccessToken } from "../lib/session";
+import { getAccessToken } from "@/lib/session";
 
-const AppShell = lazy(() => import("../components/AppShell").then((module) => ({ default: module.AppShell })));
+const AppShell = lazy(() => import("@/app/layout/app-shell").then((module) => ({ default: module.AppShell })));
 const AppSettingsPage = lazy(() =>
-  import("../pages/AppSettingsPage").then((module) => ({ default: module.AppSettingsPage })),
+  import("@/features/settings/pages/app-settings-page").then((module) => ({ default: module.AppSettingsPage })),
 );
 const AssignmentHistoryPage = lazy(() =>
-  import("../features/assets/pages/AssignmentHistoryPage").then((module) => ({ default: module.AssignmentHistoryPage })),
+  import("@/features/assets/pages/AssignmentHistoryPage").then((module) => ({ default: module.AssignmentHistoryPage })),
 );
 const AssetDetailPage = lazy(() =>
-  import("../features/assets/pages/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })),
+  import("@/features/assets/pages/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })),
 );
 const AssetFormPage = lazy(() =>
-  import("../features/assets/pages/AssetFormPage").then((module) => ({ default: module.AssetFormPage })),
+  import("@/features/assets/pages/AssetFormPage").then((module) => ({ default: module.AssetFormPage })),
 );
 const AssetListPage = lazy(() =>
-  import("../features/assets/pages/AssetListPage").then((module) => ({ default: module.AssetListPage })),
+  import("@/features/assets/pages/AssetListPage").then((module) => ({ default: module.AssetListPage })),
 );
-const DashboardPage = lazy(() => import("../pages/DashboardPage").then((module) => ({ default: module.DashboardPage })));
+const AssetRequestsPage = lazy(() =>
+  import("@/features/assets/pages/AssetRequestsPage").then((module) => ({ default: module.AssetRequestsPage })),
+);
+const DashboardPage = lazy(() => import("@/features/dashboard/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
 const EmployeeManagementPage = lazy(() =>
-  import("../pages/EmployeeManagementPage").then((module) => ({ default: module.EmployeeManagementPage })),
+  import("@/features/employees/pages/employee-management-page").then((module) => ({ default: module.EmployeeManagementPage })),
 );
-const LoginPage = lazy(() => import("../pages/LoginPage").then((module) => ({ default: module.LoginPage })));
+const LoginPage = lazy(() => import("@/features/auth/pages/login-page").then((module) => ({ default: module.LoginPage })));
 const LookupManagementPage = lazy(() =>
-  import("../pages/LookupManagementPage").then((module) => ({ default: module.LookupManagementPage })),
+  import("@/features/lookups/pages/lookup-management-page").then((module) => ({ default: module.LookupManagementPage })),
 );
 const MaintenanceTicketDetailPage = lazy(() =>
-  import("../pages/MaintenanceTicketDetailPage").then((module) => ({ default: module.MaintenanceTicketDetailPage })),
+  import("@/features/maintenance/pages/maintenance-ticket-detail-page").then((module) => ({ default: module.MaintenanceTicketDetailPage })),
 );
 const MaintenanceTicketListPage = lazy(() =>
-  import("../pages/MaintenanceTicketListPage").then((module) => ({ default: module.MaintenanceTicketListPage })),
+  import("@/features/maintenance/pages/maintenance-ticket-list-page").then((module) => ({ default: module.MaintenanceTicketListPage })),
 );
 const SoftwareLicenseDetailPage = lazy(() =>
-  import("../pages/SoftwareLicenseDetailPage").then((module) => ({ default: module.SoftwareLicenseDetailPage })),
+  import("@/features/licenses/pages/software-license-detail-page").then((module) => ({ default: module.SoftwareLicenseDetailPage })),
 );
 const SoftwareLicenseListPage = lazy(() =>
-  import("../pages/SoftwareLicenseListPage").then((module) => ({ default: module.SoftwareLicenseListPage })),
+  import("@/features/licenses/pages/software-license-list-page").then((module) => ({ default: module.SoftwareLicenseListPage })),
 );
 const UserPreferencesPage = lazy(() =>
-  import("../pages/UserPreferencesPage").then((module) => ({ default: module.UserPreferencesPage })),
+  import("@/features/users/pages/user-preferences-page").then((module) => ({ default: module.UserPreferencesPage })),
 );
 const UserManagementPage = lazy(() =>
-  import("../pages/UserManagementPage").then((module) => ({ default: module.UserManagementPage })),
+  import("@/features/users/pages/user-management-page").then((module) => ({ default: module.UserManagementPage })),
 );
 
 function ProtectedShell() {
@@ -63,6 +66,7 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/assets" element={<AssetListPage />} />
+          <Route path="/asset-requests" element={<AssetRequestsPage />} />
           <Route path="/employees-directory" element={<EmployeeManagementPage />} />
           <Route path="/assets/new" element={<AssetFormPage />} />
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />

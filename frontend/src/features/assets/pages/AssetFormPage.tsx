@@ -6,11 +6,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
-import { PageHeader } from "../../../components/ui/page-header";
-import { Panel } from "../../../components/ui/panel";
-import { createAsset, updateAsset } from "../../../api/assets";
-import { useLookupsBundle } from "../../../hooks/useLookups";
-import { useAsset } from "../hooks/useAssets";
+import { createAsset, updateAsset } from "@/features/assets/api/assets";
+import { Button } from "@/components/ui/button";
+import { ControlledSelectField } from "@/components/ui/select-field";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { Textarea } from "@/components/ui/textarea";
+import { useAsset } from "@/features/assets/hooks/useAssets";
+import { useLookupsBundle } from "@/features/lookups/hooks/useLookups";
 
 const assetFormSchema = z.object({
   asset_tag: z.string().min(1, "Il tag asset e obbligatorio").optional(),
@@ -37,8 +41,6 @@ const assetFormSchema = z.object({
 });
 
 type AssetFormValues = z.infer<typeof assetFormSchema>;
-
-const inputClassName = "w-full rounded-md border border-slate-300 px-3 py-2";
 
 export function AssetFormPage() {
   const navigate = useNavigate();
@@ -115,7 +117,10 @@ export function AssetFormPage() {
   const mutation = useMutation({
     mutationFn: async (values: AssetFormValues) => {
       const payload = {
-        ...values,
+        ...(values.asset_tag ? { asset_tag: values.asset_tag } : {}),
+        name: values.name,
+        category_id: values.category_id,
+        status_id: values.status_id,
         model_id: values.model_id || null,
         location_id: values.location_id || null,
         vendor_id: values.vendor_id || null,
@@ -170,111 +175,99 @@ export function AssetFormPage() {
           <div className="grid gap-4 md:grid-cols-2">
             {!isEditMode && (
               <Field label="Tag asset" error={form.formState.errors.asset_tag?.message}>
-                <input {...form.register("asset_tag")} className={inputClassName} />
+                <Input {...form.register("asset_tag")} />
               </Field>
             )}
             <Field label="Nome asset" error={form.formState.errors.name?.message}>
-              <input {...form.register("name")} className={inputClassName} />
+              <Input {...form.register("name")} />
             </Field>
             <Field label="Categoria" error={form.formState.errors.category_id?.message}>
-              <select {...form.register("category_id")} className={inputClassName}>
-                <option value={0}>Seleziona categoria</option>
-                {categories.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <ControlledSelectField
+                control={form.control}
+                name="category_id"
+                placeholder="Seleziona categoria"
+                options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
+              />
             </Field>
             <Field label="Stato" error={form.formState.errors.status_id?.message}>
-              <select {...form.register("status_id")} className={inputClassName}>
-                <option value={0}>Seleziona stato</option>
-                {statuses.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <ControlledSelectField
+                control={form.control}
+                name="status_id"
+                placeholder="Seleziona stato"
+                options={statuses.map((item) => ({ value: String(item.id), label: item.name }))}
+              />
             </Field>
             <Field label="Numero seriale">
-              <input {...form.register("serial_number")} className={inputClassName} />
+              <Input {...form.register("serial_number")} />
             </Field>
             <Field label="Tipo asset">
-              <input {...form.register("asset_type")} className={inputClassName} placeholder="Es. Notebook, Server, Monitor" />
+              <Input {...form.register("asset_type")} placeholder="Es. Notebook, Server, Monitor" />
             </Field>
             <Field label="Marca">
-              <input {...form.register("brand")} className={inputClassName} placeholder="Es. Lenovo, Dell, Apple" />
+              <Input {...form.register("brand")} placeholder="Es. Lenovo, Dell, Apple" />
             </Field>
             <Field label="Modello">
-              <select {...form.register("model_id")} className={inputClassName}>
-                <option value="">Nessun modello</option>
-                {models.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <ControlledSelectField
+                control={form.control}
+                name="model_id"
+                placeholder="Nessun modello"
+                options={models.map((item) => ({ value: String(item.id), label: item.name }))}
+              />
             </Field>
             <Field label="Sede">
-              <select {...form.register("location_id")} className={inputClassName}>
-                <option value="">Nessuna sede</option>
-                {locations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <ControlledSelectField
+                control={form.control}
+                name="location_id"
+                placeholder="Nessuna sede"
+                options={locations.map((item) => ({ value: String(item.id), label: item.name }))}
+              />
             </Field>
             <Field label="Fornitore">
-              <select {...form.register("vendor_id")} className={inputClassName}>
-                <option value="">Nessun fornitore</option>
-                {vendors.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <ControlledSelectField
+                control={form.control}
+                name="vendor_id"
+                placeholder="Nessun fornitore"
+                options={vendors.map((item) => ({ value: String(item.id), label: item.name }))}
+              />
             </Field>
             <Field label="Dipartimento">
-              <select {...form.register("current_department_id")} className={inputClassName}>
-                <option value="">Nessun dipartimento</option>
-                {departments.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <ControlledSelectField
+                control={form.control}
+                name="current_department_id"
+                placeholder="Nessun dipartimento"
+                options={departments.map((item) => ({ value: String(item.id), label: item.name }))}
+              />
             </Field>
             <Field label="Data acquisto">
-              <input type="date" {...form.register("purchase_date")} className={inputClassName} />
+              <Input type="date" {...form.register("purchase_date")} />
             </Field>
             <Field label="Scadenza garanzia">
-              <input type="date" {...form.register("warranty_expiry_date")} className={inputClassName} />
+              <Input type="date" {...form.register("warranty_expiry_date")} />
             </Field>
             <Field label="Fine vita prevista">
-              <input type="date" {...form.register("expected_end_of_life_date")} className={inputClassName} />
+              <Input type="date" {...form.register("expected_end_of_life_date")} />
             </Field>
             <Field label="Data dismissione">
-              <input type="date" {...form.register("disposal_date")} className={inputClassName} />
+              <Input type="date" {...form.register("disposal_date")} />
             </Field>
             <Field label="Cost center">
-              <input {...form.register("cost_center")} className={inputClassName} />
+              <Input {...form.register("cost_center")} />
             </Field>
             <Field label="Piano">
-              <input {...form.register("location_floor")} className={inputClassName} />
+              <Input {...form.register("location_floor")} />
             </Field>
             <Field label="Stanza">
-              <input {...form.register("location_room")} className={inputClassName} />
+              <Input {...form.register("location_room")} />
             </Field>
             <Field label="Rack">
-              <input {...form.register("location_rack")} className={inputClassName} />
+              <Input {...form.register("location_rack")} />
             </Field>
             <Field label="Slot">
-              <input {...form.register("location_slot")} className={inputClassName} />
+              <Input {...form.register("location_slot")} />
             </Field>
           </div>
           <Field label="Descrizione" className="mt-4">
-            <textarea {...form.register("description")} className={`${inputClassName} min-h-28`} />
+            <Textarea {...form.register("description")} className="min-h-28" />
           </Field>
         </Panel>
 
@@ -284,9 +277,9 @@ export function AssetFormPage() {
             {error && <p className="text-sm text-rose-600" aria-live="polite">{error.message}</p>}
             {mutation.error && <p className="text-sm text-rose-600" aria-live="polite">{mutation.error.message}</p>}
           </div>
-          <button className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white">
+          <Button type="submit" className="bg-brand-600 hover:bg-brand-700">
             {mutation.isPending ? "Salvataggio…" : isEditMode ? "Salva modifiche" : "Crea asset"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -300,7 +293,7 @@ function Field({
   children,
 }: {
   label: string;
-  error?: string;
+  error?: string | undefined;
   className?: string;
   children: ReactNode;
 }) {

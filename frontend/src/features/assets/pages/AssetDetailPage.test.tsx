@@ -2,9 +2,9 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AssetDetailPage } from "./AssetDetailPage";
-import { renderWithProviders } from "../../../test/utils";
+import { renderWithProviders } from "@/test/utils";
 
-vi.mock("../hooks/useAssets", () => ({
+vi.mock("@/features/assets/hooks/useAssets", () => ({
   useAsset: () => ({
     isLoading: false,
     error: null,
@@ -40,13 +40,13 @@ vi.mock("../hooks/useAssets", () => ({
   }),
 }));
 
-vi.mock("../hooks/useAssetMaintenance", () => ({
+vi.mock("@/features/assets/hooks/useAssetMaintenance", () => ({
   useAssetMaintenance: () => ({
     data: { items: [], total: 0, page: 1, page_size: 20 },
   }),
 }));
 
-vi.mock("../../../hooks/useLookups", () => ({
+vi.mock("@/features/lookups/hooks/useLookups", () => ({
   useLookupsBundle: () => ({
     employees: [],
     statuses: [{ id: 1, name: "In Stock", code: "IN_STOCK" }],

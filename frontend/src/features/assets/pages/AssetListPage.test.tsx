@@ -2,9 +2,9 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AssetListPage } from "./AssetListPage";
-import { renderWithProviders } from "../../../test/utils";
+import { renderWithProviders } from "@/test/utils";
 
-vi.mock("../../../hooks/useLookups", () => ({
+vi.mock("@/features/lookups/hooks/useLookups", () => ({
   useLookupsBundle: () => ({
     statuses: [{ id: 1, name: "In Stock", code: "IN_STOCK" }],
     categories: [{ id: 1, name: "Laptop", code: "LAPTOP" }],
@@ -12,7 +12,7 @@ vi.mock("../../../hooks/useLookups", () => ({
   }),
 }));
 
-vi.mock("../hooks/useAssets", () => ({
+vi.mock("@/features/assets/hooks/useAssets", () => ({
   useAssets: () => ({
     isLoading: false,
     error: null,

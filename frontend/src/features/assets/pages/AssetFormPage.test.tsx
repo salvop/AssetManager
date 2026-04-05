@@ -3,9 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AssetFormPage } from "./AssetFormPage";
-import { renderWithProviders } from "../../../test/utils";
+import { renderWithProviders } from "@/test/utils";
 
-vi.mock("../../../hooks/useLookups", () => ({
+vi.mock("@/features/lookups/hooks/useLookups", () => ({
   useLookupsBundle: () => ({
     categories: [{ id: 1, name: "Laptop", code: "LAPTOP" }],
     statuses: [{ id: 1, name: "In Stock", code: "IN_STOCK" }],
@@ -18,7 +18,7 @@ vi.mock("../../../hooks/useLookups", () => ({
   }),
 }));
 
-vi.mock("../hooks/useAssets", () => ({
+vi.mock("@/features/assets/hooks/useAssets", () => ({
   useAsset: () => ({
     data: null,
     isLoading: false,

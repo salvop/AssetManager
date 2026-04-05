@@ -75,6 +75,23 @@ class DashboardWorkflowTicketResponse(BaseModel):
     opened_days: int
 
 
+class DashboardLocationAssetCountResponse(BaseModel):
+    location_id: int | None = None
+    location_code: str
+    location_name: str
+    total: int
+
+
+class DashboardLocationAssetLinkResponse(BaseModel):
+    location_id: int | None = None
+    location_code: str
+    location_name: str
+    asset_id: int
+    asset_tag: str
+    asset_name: str
+    status_code: str
+
+
 class DashboardSummaryResponse(BaseModel):
     total_assets: int
     assigned_assets: int
@@ -94,3 +111,5 @@ class DashboardSummaryResponse(BaseModel):
     assets_ready_for_assignment: list[DashboardWorkflowAssetResponse]
     retired_assets_pending_disposal: list[DashboardWorkflowAssetResponse]
     maintenance_queue: list[DashboardWorkflowTicketResponse]
+    assets_by_location: list[DashboardLocationAssetCountResponse]
+    location_asset_links: list[DashboardLocationAssetLinkResponse]

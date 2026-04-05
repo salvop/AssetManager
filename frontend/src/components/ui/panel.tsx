@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export function Panel({
@@ -17,14 +18,14 @@ export function Panel({
   children: ReactNode;
 } & HTMLAttributes<HTMLElement>) {
   return (
-    <section id={id} className={cn("app-panel", className)} {...props}>
+    <Card id={id} className={cn("rounded-[28px]", className)} {...props}>
       {(title || eyebrow) && (
-        <div>
+        <CardHeader className="pb-0">
           {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{eyebrow}</p>}
-          {title && <h3 className="mt-2 text-lg font-semibold text-slate-900">{title}</h3>}
-        </div>
+          {title && <CardTitle className="mt-2 text-lg font-semibold text-slate-900">{title}</CardTitle>}
+        </CardHeader>
       )}
-      <div className={cn(title || eyebrow ? "mt-5" : "")}>{children}</div>
-    </section>
+      <CardContent className={cn(!title && !eyebrow ? "p-6" : "pt-5")}>{children}</CardContent>
+    </Card>
   );
 }

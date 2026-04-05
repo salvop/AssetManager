@@ -1,7 +1,7 @@
 [project]
 name = "asset-manager-backend"
 version = "0.1.0"
-description = "Backend API for the Asset Manager MVP"
+description = "Backend API for the OpsAsset MVP"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14.0,<2.0.0",

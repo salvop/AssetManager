@@ -17,7 +17,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    project_name: str = Field(default="Asset Manager", alias="PROJECT_NAME")
+    project_name: str = Field(default="OpsAsset", alias="PROJECT_NAME")
     api_v1_prefix: str = Field(default="/api/v1", alias="API_V1_PREFIX")
     secret_key: str = Field(alias="SECRET_KEY")
     access_token_expire_minutes: int = Field(default=60, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     smtp_username: str | None = Field(default=None, alias="SMTP_USERNAME")
     smtp_password: str | None = Field(default=None, alias="SMTP_PASSWORD")
     smtp_from_email: str | None = Field(default=None, alias="SMTP_FROM_EMAIL")
-    smtp_from_name: str = Field(default="Asset Manager", alias="SMTP_FROM_NAME")
+    smtp_from_name: str = Field(default="OpsAsset", alias="SMTP_FROM_NAME")
     smtp_use_starttls: bool = Field(default=True, alias="SMTP_USE_STARTTLS")
     smtp_use_ssl: bool = Field(default=False, alias="SMTP_USE_SSL")
     notification_default_recipients: list[str] | str = Field(
